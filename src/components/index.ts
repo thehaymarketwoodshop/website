@@ -7,3 +7,4 @@ export { ProductGrid } from './ProductGrid';
 export { GalleryFilters } from './GalleryFilters';
 export { ContactForm } from './ContactForm';
 export { ImagePlaceholder } from './ImagePlaceholder';
+export { WoodDetailSection } from "./WoodDetailSection";

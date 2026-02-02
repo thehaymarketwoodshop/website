@@ -3,7 +3,8 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Hammer, Ruler, TreeDeciduous, Sparkles, Quote } from 'lucide-react';
-import { Section, Button, ProductCard, ImagePlaceholder } from '@/components';
+import { Button, ProductCard, ImagePlaceholder } from '@/components';
+import { WoodDetailSection } from '@/components/WoodDetailSection';
 import { getFeaturedProducts } from '@/data/products';
 
 const services = [
@@ -111,7 +112,7 @@ export default function HomePage() {
       </section>
 
       {/* Featured Products */}
-      <Section background="white" className="py-24 sm:py-32">
+      <section className="bg-white py-24 sm:py-32">
         <div className="container-wide">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
             <div>
@@ -135,10 +136,10 @@ export default function HomePage() {
             ))}
           </div>
         </div>
-      </Section>
+      </section>
 
       {/* Services */}
-      <Section background="light" className="py-24 sm:py-32">
+      <section className="bg-neutral-50 py-24 sm:py-32">
         <div className="container-wide">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <h2 className="heading-section">What We Make</h2>
@@ -167,10 +168,10 @@ export default function HomePage() {
             ))}
           </div>
         </div>
-      </Section>
+      </section>
 
       {/* Craftsmanship / Process */}
-      <Section background="white" className="py-24 sm:py-32">
+      <section className="bg-white py-24 sm:py-32">
         <div className="container-wide">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <motion.div
@@ -222,10 +223,11 @@ export default function HomePage() {
             </motion.div>
           </div>
         </div>
-      </Section>
+      </section>
 
       {/* Testimonials */}
-      <Section background="warm" className="py-24 sm:py-32">
+      <section className="bg-neutral-100 py-24 sm:py-32">
+
         <div className="container-wide">
           <div className="text-center mb-16">
             <h2 className="heading-section">What Clients Say</h2>
@@ -253,10 +255,10 @@ export default function HomePage() {
             ))}
           </div>
         </div>
-      </Section>
+      </section>
 
       {/* CTA Section */}
-      <Section background="white" className="py-24 sm:py-32">
+      <section className="bg-white py-24 sm:py-32">
         <div className="container-narrow text-center">
           <h2 className="heading-section">Ready to Start Your Project?</h2>
           <p className="mt-4 body-large max-w-xl mx-auto">
@@ -277,7 +279,7 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-      </Section>
+      </section>
     </>
   );
 }
