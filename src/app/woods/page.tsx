@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Section, WoodDetailSection } from '@/components';
+import { WoodDetailSection } from "@/components/WoodDetailSection";
 import { Paintbrush, Shield, Layers } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -116,7 +116,7 @@ export default function WoodsPage() {
       </section>
 
       {/* ━━ Custom Wood Requests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <Section background="warm" className="py-20 sm:py-28">
+      <section className="bg-neutral-100 py-24 sm:py-32">
         <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="max-w-3xl">
             <h2
@@ -139,10 +139,10 @@ export default function WoodsPage() {
             </a>
           </div>
         </div>
-      </Section>
+      </section>
 
       {/* ━━ Finishes & Materials ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <Section background="white" className="py-20 sm:py-28">
+      <section className="bg-white py-24 sm:py-32">
         <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
           <h2
             className="text-3xl sm:text-4xl font-semibold tracking-tight text-neutral-900 mb-14"
@@ -183,7 +183,7 @@ export default function WoodsPage() {
             ))}
           </div>
         </div>
-      </Section>
+      </section>
     </>
   );
 }
