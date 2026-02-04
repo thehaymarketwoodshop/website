@@ -9,10 +9,10 @@ import { cn } from '@/lib/utils';
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '/about', label: 'About' },
   { href: '/woods', label: 'Our Woods' },
   { href: '/stain-samples', label: 'Stain Samples' },
   { href: '/gallery', label: 'Gallery' },
+  { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];
 
