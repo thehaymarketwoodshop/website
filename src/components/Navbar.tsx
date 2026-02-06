@@ -11,7 +11,7 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/woods', label: 'Our Woods' },
   { href: '/stain-samples', label: 'Stain Samples' },
-  { href: '/gallery', label: 'Gallery' },
+  { href: '/products', label: 'Products' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];
