@@ -114,3 +114,22 @@ export type DbItemType = {
   is_active: boolean;
   created_at: string;
 };
+// ===== OVERRIDES (match admin UI payloads) =====
+
+export async function createWoodType(data: {
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}) {
+  const { error } = await supabase.from("wood_types").insert(data);
+  if (error) throw error;
+}
+
+export async function createItemType(data: {
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}) {
+  const { error } = await supabase.from("item_types").insert(data);
+  if (error) throw error;
+}
