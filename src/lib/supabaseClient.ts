@@ -99,3 +99,18 @@ export async function deleteItemType(id: string) {
   const { error } = await supabase.from("item_types").delete().eq("id", id);
   if (error) throw error;
 }
+export type DbWoodType = {
+  id: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type DbItemType = {
+  id: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+};
