@@ -51,6 +51,10 @@ export type DbProduct = {
   wood_type_id: string | null;
   item_type_id: string | null;
 };
+export type DbProductWithRelations = DbProduct & {
+  wood_types?: Pick<DbWoodType, "id" | "name"> | null;
+  item_types?: Pick<DbItemType, "id" | "name"> | null;
+};
 
 /* ================================
    AUTH / ADMIN
