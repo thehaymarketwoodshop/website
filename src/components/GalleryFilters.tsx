@@ -8,19 +8,28 @@ import {
   DEFAULT_FILTERS,
   ItemType,
   Size,
-  ITEM_TYPE_LABELS,
   SIZE_LABELS,
-  WOOD_TYPES,
 } from '@/types/product';
 import { countActiveFilters, areFiltersDefault } from '@/lib/filter-utils';
 import { cn } from '@/lib/utils';
 
+type FilterOption = { id: string; name: string };
+
 interface GalleryFiltersProps {
   filters: GalleryFiltersType;
   onFiltersChange: (filters: GalleryFiltersType) => void;
+
+  // ✅ Dynamic options from Supabase
+  woodTypes: FilterOption[];
+  itemTypes: FilterOption[];
 }
 
-export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps) {
+export function GalleryFilters({
+  filters,
+  onFiltersChange,
+  woodTypes,
+  itemTypes,
+}: GalleryFiltersProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const activeCount = countActiveFilters(filters);
   const isDefault = areFiltersDefault(filters);
@@ -29,12 +38,15 @@ export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps
     onFiltersChange({ ...filters, inStock: !filters.inStock });
   }, [filters, onFiltersChange]);
 
+  // We store selected item types as string names in filters.itemTypes (existing behavior)
   const handleItemTypeToggle = useCallback(
-    (type: ItemType) => {
-      const newTypes = filters.itemTypes.includes(type)
-        ? filters.itemTypes.filter((t) => t !== type)
-        : [...filters.itemTypes, type];
-      onFiltersChange({ ...filters, itemTypes: newTypes });
+    (typeName: string) => {
+      const type = typeName as unknown as ItemType; // keep compatibility with existing type
+      const newTypes = (filters.itemTypes as unknown as string[]).includes(typeName)
+        ? (filters.itemTypes as unknown as string[]).filter((t) => t !== typeName)
+        : [...(filters.itemTypes as unknown as string[]), typeName];
+
+      onFiltersChange({ ...filters, itemTypes: newTypes as unknown as ItemType[] });
     },
     [filters, onFiltersChange]
   );
@@ -62,7 +74,7 @@ export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps
 
   const FilterContent = () => (
     <div className="space-y-8">
-      {/* In Stock Toggle - Always at top */}
+      {/* Availability */}
       <div>
         <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
           Availability
@@ -79,9 +91,7 @@ export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps
           <div
             className={cn(
               'w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors',
-              filters.inStock
-                ? 'bg-white border-white'
-                : 'border-neutral-300'
+              filters.inStock ? 'bg-white border-white' : 'border-neutral-300'
             )}
           >
             {filters.inStock && <Check size={14} className="text-neutral-900" />}
@@ -90,30 +100,28 @@ export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps
         </button>
       </div>
 
-      {/* Item Type Multi-select Pills */}
+      {/* Item Type */}
       <div>
         <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
           Item Type
         </h3>
         <div className="flex flex-wrap gap-2">
-          {(Object.keys(ITEM_TYPE_LABELS) as ItemType[]).map((type) => (
-            <button
-              key={type}
-              onClick={() => handleItemTypeToggle(type)}
-              className={cn(
-                'filter-pill',
-                filters.itemTypes.includes(type)
-                  ? 'filter-pill-active'
-                  : 'filter-pill-inactive'
-              )}
-            >
-              {ITEM_TYPE_LABELS[type]}
-            </button>
-          ))}
+          {itemTypes.map((t) => {
+            const selected = (filters.itemTypes as unknown as string[]).includes(t.name);
+            return (
+              <button
+                key={t.id}
+                onClick={() => handleItemTypeToggle(t.name)}
+                className={cn('filter-pill', selected ? 'filter-pill-active' : 'filter-pill-inactive')}
+              >
+                {t.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Size Single-select Segmented Control */}
+      {/* Size */}
       <div>
         <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
           Size
@@ -136,30 +144,28 @@ export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps
         </div>
       </div>
 
-      {/* Wood Type Multi-select Pills */}
+      {/* Wood Type */}
       <div>
         <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
           Wood Type
         </h3>
         <div className="flex flex-wrap gap-2">
-          {WOOD_TYPES.map((wood) => (
+          {woodTypes.map((w) => (
             <button
-              key={wood}
-              onClick={() => handleWoodTypeToggle(wood)}
+              key={w.id}
+              onClick={() => handleWoodTypeToggle(w.name)}
               className={cn(
                 'filter-pill',
-                filters.woodTypes.includes(wood)
-                  ? 'filter-pill-active'
-                  : 'filter-pill-inactive'
+                filters.woodTypes.includes(w.name) ? 'filter-pill-active' : 'filter-pill-inactive'
               )}
             >
-              {wood}
+              {w.name}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Clear All Button */}
+      {/* Clear */}
       {!isDefault && (
         <button
           onClick={handleClearAll}
@@ -205,7 +211,7 @@ export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps
         </button>
       </div>
 
-      {/* Mobile Filter Drawer */}
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {isMobileOpen && (
           <motion.div
@@ -215,13 +221,10 @@ export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-50 lg:hidden"
           >
-            {/* Backdrop */}
             <div
               className="absolute inset-0 bg-black/30 backdrop-blur-sm"
               onClick={() => setIsMobileOpen(false)}
             />
-
-            {/* Drawer */}
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
@@ -229,7 +232,6 @@ export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-hidden"
             >
-              {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-neutral-100">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-semibold text-neutral-900">Filters</h2>
@@ -248,12 +250,10 @@ export function GalleryFilters({ filters, onFiltersChange }: GalleryFiltersProps
                 </button>
               </div>
 
-              {/* Content */}
               <div className="p-6 overflow-y-auto max-h-[calc(85vh-140px)] scrollbar-thin">
                 <FilterContent />
               </div>
 
-              {/* Footer */}
               <div className="p-6 border-t border-neutral-100 bg-white">
                 <button
                   onClick={() => setIsMobileOpen(false)}
