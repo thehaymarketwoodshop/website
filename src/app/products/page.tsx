@@ -3,6 +3,8 @@
 import { useMemo, useCallback, useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
+
+import { supabase } from '@/lib/supabaseClient';
 import { GalleryFilters, ProductGrid } from '@/components';
 import { products } from '@/data/products';
 import {
@@ -12,20 +14,57 @@ import {
 } from '@/types/product';
 import { parseFiltersFromParams, serializeFiltersToParams } from '@/lib/filter-utils';
 
+type FilterOption = { id: string; name: string };
+
 function ProductsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [filters, setFilters] = useState<GalleryFiltersType>(DEFAULT_FILTERS);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize filters from URL params on mount
+  const [woodTypes, setWoodTypes] = useState<FilterOption[]>([]);
+  const [itemTypes, setItemTypes] = useState<FilterOption[]>([]);
+
+  // 1) Initialize filters from URL params
   useEffect(() => {
     const parsedFilters = parseFiltersFromParams(searchParams);
     setFilters(parsedFilters);
     setIsInitialized(true);
   }, [searchParams]);
 
-  // Update URL when filters change (after initial load)
+  // 2) Load active filter options from Supabase
+  useEffect(() => {
+    const loadOptions = async () => {
+      const { data: woods, error: woodErr } = await supabase
+        .from('wood_types')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (woodErr) {
+        console.error('Error loading wood types:', woodErr);
+      } else {
+        setWoodTypes((woods ?? []) as FilterOption[]);
+      }
+
+      const { data: items, error: itemErr } = await supabase
+        .from('item_types')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (itemErr) {
+        console.error('Error loading item types:', itemErr);
+      } else {
+        setItemTypes((items ?? []) as FilterOption[]);
+      }
+    };
+
+    loadOptions();
+  }, []);
+
+  // 3) Update URL when filters change
   const handleFiltersChange = useCallback(
     (newFilters: GalleryFiltersType) => {
       setFilters(newFilters);
@@ -35,13 +74,11 @@ function ProductsContent() {
     [router]
   );
 
-  // Filter products based on current filters (memoized for performance)
+  // 4) Filter products (currently from static `products`)
   const filteredProducts = useMemo(() => {
     return products.filter((product: Product) => {
       // In Stock filter
-      if (filters.inStock && product.soldOut) {
-        return false;
-      }
+      if (filters.inStock && product.soldOut) return false;
 
       // Item Type filter (OR within selection)
       if (filters.itemTypes.length > 0 && !filters.itemTypes.includes(product.itemType)) {
@@ -49,26 +86,22 @@ function ProductsContent() {
       }
 
       // Size filter
-      if (filters.size && product.size !== filters.size) {
-        return false;
-      }
+      if (filters.size && product.size !== filters.size) return false;
 
-      // Wood Type filter (OR within selection, case-insensitive)
+      // Wood Type filter (case-insensitive OR within selection)
       if (filters.woodTypes.length > 0) {
         const productWood = product.woodType.toLowerCase();
         const matchesWood = filters.woodTypes.some(
           (wood) => wood.toLowerCase() === productWood
         );
-        if (!matchesWood) {
-          return false;
-        }
+        if (!matchesWood) return false;
       }
 
       return true;
     });
   }, [filters]);
 
-  // Don't render until filters are initialized from URL
+  // Loading skeleton until URL filters initialize
   if (!isInitialized) {
     return (
       <div className="min-h-screen pt-32 sm:pt-40">
@@ -105,11 +138,15 @@ function ProductsContent() {
         <div className="container-wide">
           <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
             {/* Filters */}
-            <GalleryFilters filters={filters} onFiltersChange={handleFiltersChange} />
+            <GalleryFilters
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              woodTypes={woodTypes}
+              itemTypes={itemTypes}
+            />
 
             {/* Product Grid */}
             <div className="flex-1 min-w-0">
-              {/* Results count */}
               <div className="mb-6 flex items-center justify-between">
                 <p className="text-sm text-neutral-500">
                   {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
