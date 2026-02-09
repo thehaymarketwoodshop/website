@@ -131,15 +131,33 @@ function ProductsContent() {
       const itemType = itemName as unknown as ItemType;
 
       return {
-        id: p.id,
-        name: p.name,
-        price: p.price ?? undefined,
-        soldOut: Boolean(p.sold_out),
-        size: (p.size ?? '') as any,
-        woodType,
-        itemType,
-        image: imageUrl,
-      } as Product;
+  id: p.id,
+  name: p.name,
+
+  // 🔒 Required Product fields (safe defaults)
+  slug: (p as any).slug ?? p.id,
+  category: (p as any).category ?? 'Products',
+  description: (p as any).description ?? '',
+  dimensions: (p as any).dimensions ?? '',
+
+  // If your Product type has these, defaults keep build passing
+  finish: (p as any).finish ?? '',
+  care: (p as any).care ?? '',
+  materials: (p as any).materials ?? '',
+  featured: Boolean((p as any).featured ?? false),
+  createdAt: (p as any).createdAt ?? p.created_at ?? new Date().toISOString(),
+
+  price: p.price ?? undefined,
+  soldOut: Boolean(p.sold_out),
+  size: (p.size ?? '') as any,
+
+  woodType: woodType,
+  itemType: itemType,
+
+  // Must match ProductGrid expectation
+  image: imageUrl,
+} as unknown as Product;
+
     });
   }, [dbProducts, woodTypes, itemTypes]);
 
