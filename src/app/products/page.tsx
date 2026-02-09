@@ -171,6 +171,8 @@ function ProductsContent() {
 
         // Image
         image: imageUrl,
+        imageUrl: imageUrl,
+        images: imageUrl ? [imageUrl] : [],
       } as unknown) as Product;
     });
   }, [dbProducts, woodNameById, itemNameById]);
