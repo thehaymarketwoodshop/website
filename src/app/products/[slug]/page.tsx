@@ -3,38 +3,34 @@ import { supabase } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
-type PageProps = {
-  params: { slug: string };
-};
+type PageProps = { params: { slug: string } };
 
-const BUCKET = 'products'; // change if your bucket name differs
+const BUCKET = 'products'; // change if different
 
 export default async function ProductDetailPage({ params }: PageProps) {
-  const idOrSlug = params.slug;
+  const id = params.slug;
 
-  const selectShape = `
-    *,
-    wood_types:wood_type ( id, name ),
-    item_types:item_type ( id, name )
-  `;
-
-  // 1) Try by ID first (works with uuid links)
-  let { data: product, error } = await supabase
+  // 1) Get product
+  const { data: product, error: prodErr } = await supabase
     .from('products')
-    .select(selectShape)
-    .eq('id', idOrSlug)
+    .select('*')
+    .eq('id', id)
     .maybeSingle();
 
-  // 2) If not found, try by slug (only works if you add a `slug` column later)
-  if (!product) {
-    const res = await supabase
-      .from('products')
-      .select(selectShape)
-      .eq('slug', idOrSlug)
-      .maybeSingle();
-
-    // If your table doesn't have `slug`, Supabase will return an error — we ignore it.
-    if (res.data) product = res.data as any;
+  if (prodErr) {
+    return (
+      <div className="min-h-screen pt-28 sm:pt-36">
+        <div className="container-wide">
+          <h1 className="text-2xl font-semibold">Error loading product</h1>
+          <pre className="mt-4 text-xs bg-neutral-50 p-4 rounded-xl overflow-auto">
+{JSON.stringify(prodErr, null, 2)}
+          </pre>
+          <Link className="mt-6 inline-block text-sm underline" href="/products">
+            Back to products
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (!product) {
@@ -53,17 +49,31 @@ export default async function ProductDetailPage({ params }: PageProps) {
     );
   }
 
+  // 2) Resolve wood/item names (works even without FK constraints)
+  const woodId = (product as any).wood_type ?? (product as any).woodType ?? null;
+  const itemId = (product as any).item_type ?? (product as any).itemType ?? null;
+
+  const { data: woodRow } = woodId
+    ? await supabase.from('wood_types').select('id, name').eq('id', woodId).maybeSingle()
+    : { data: null as any };
+
+  const { data: itemRow } = itemId
+    ? await supabase.from('item_types').select('id, name').eq('id', itemId).maybeSingle()
+    : { data: null as any };
+
+  const woodName = woodRow?.name ?? '';
+  const itemName = itemRow?.name ?? '';
+
+  // 3) Image URL
   const imagePath = (product as any).image_path as string | null | undefined;
   const imageUrl = imagePath
     ? supabase.storage.from(BUCKET).getPublicUrl(imagePath).data.publicUrl
     : '';
 
+  // 4) Fields
   const name = (product as any).name ?? 'Product';
   const price = (product as any).price;
   const soldOut = Boolean((product as any).sold_out ?? false);
-
-  const woodName = (product as any).wood_types?.name ?? '';
-  const itemName = (product as any).item_types?.name ?? '';
 
   const sizeIn =
     (product as any).size_in ??
