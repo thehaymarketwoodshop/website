@@ -30,9 +30,9 @@ export interface GalleryFilters {
 }
 
 export const DEFAULT_FILTERS: GalleryFilters = {
-  inStock: true,
-  itemTypes: [],
+  inStock: false,
   size: null,
+  itemTypes: [],
   woodTypes: [],
 };
 

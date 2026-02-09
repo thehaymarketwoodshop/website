@@ -10,13 +10,16 @@ import {
   GalleryFilters as GalleryFiltersType,
   DEFAULT_FILTERS,
   Product,
-  ItemType,
-  WoodType,
 } from '@/types/product';
 import { parseFiltersFromParams, serializeFiltersToParams } from '@/lib/filter-utils';
 
 type FilterOption = { id: string; name: string };
 
+// 🔧 Update this if your bucket name differs
+const BUCKET = 'products';
+const PRODUCTS_TABLE = 'products';
+
+// DB row shape (kept flexible so you don't fight schema changes)
 type DbProduct = {
   id: string;
   name: string;
@@ -25,14 +28,19 @@ type DbProduct = {
   size?: string | null;
   item_type?: string | null; // FK id
   wood_type?: string | null; // FK id
-  image_path?: string | null; // Storage path
-  is_active?: boolean | null;
-  sort_order?: number | null;
+  image_path?: string | null; // storage path
   created_at?: string | null;
-};
 
-const PRODUCTS_TABLE = 'products';
-const BUCKET = 'products'; // <-- change to your real bucket name if different
+  // optional fields (if you add them later)
+  slug?: string | null;
+  category?: string | null;
+  description?: string | null;
+  dimensions?: string | null;
+  finish?: string | null;
+  care?: string | null;
+  materials?: string | null;
+  featured?: boolean | null;
+};
 
 function ProductsContent() {
   const router = useRouter();
@@ -43,16 +51,18 @@ function ProductsContent() {
 
   const [woodTypes, setWoodTypes] = useState<FilterOption[]>([]);
   const [itemTypes, setItemTypes] = useState<FilterOption[]>([]);
+
   const [dbProducts, setDbProducts] = useState<DbProduct[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // 1) Initialize filters from URL params
   useEffect(() => {
-    const parsedFilters = parseFiltersFromParams(searchParams);
-    setFilters(parsedFilters);
+    const parsed = parseFiltersFromParams(searchParams);
+    setFilters(parsed);
     setIsInitialized(true);
   }, [searchParams]);
 
-  // 2) Load active filter options from Supabase
+  // 2) Load filter option lists
   useEffect(() => {
     const loadOptions = async () => {
       const { data: woods, error: woodErr } = await supabase
@@ -80,19 +90,20 @@ function ProductsContent() {
   // 3) Load products from Supabase
   useEffect(() => {
     const loadProducts = async () => {
-      const { data, error } = await supabase
-        .from(PRODUCTS_TABLE)
-        .select('id, name, price, sold_out, size, item_type, wood_type, image_path, is_active, sort_order, created_at')
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: false });
+      setLoading(true);
+
+      // Use select('*') so you don't break when you add new columns later
+      const { data, error } = await supabase.from(PRODUCTS_TABLE).select('*');
 
       if (error) {
         console.error('Error loading products:', error);
         setDbProducts([]);
+        setLoading(false);
         return;
       }
 
       setDbProducts((data ?? []) as DbProduct[]);
+      setLoading(false);
     };
 
     loadProducts();
@@ -102,82 +113,95 @@ function ProductsContent() {
   const handleFiltersChange = useCallback(
     (newFilters: GalleryFiltersType) => {
       setFilters(newFilters);
-      const queryString = serializeFiltersToParams(newFilters);
-      router.push(`/products${queryString}`, { scroll: false });
+      const query = serializeFiltersToParams(newFilters);
+      router.push(`/products${query}`, { scroll: false });
     },
     [router]
   );
 
-  // 5) Convert DB rows -> Product[] (what ProductGrid expects)
+  // Helpers: lookup FK id -> name
+  const woodNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const w of woodTypes) map.set(w.id, w.name);
+    return map;
+  }, [woodTypes]);
+
+  const itemNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const i of itemTypes) map.set(i.id, i.name);
+    return map;
+  }, [itemTypes]);
+
+  // 5) Map DB -> Product (shape required by ProductGrid)
   const allProducts: Product[] = useMemo(() => {
-    // Hide inactive if you use is_active; if not, this keeps everything.
-    const active = dbProducts.filter((p) => p.is_active !== false);
-
-    return active.map((p) => {
-      const woodName =
-        woodTypes.find((w) => w.id === p.wood_type)?.name ?? '';
-
-      const itemName =
-        itemTypes.find((i) => i.id === p.item_type)?.name ?? '';
+    return dbProducts.map((p) => {
+      const woodName = p.wood_type ? woodNameById.get(p.wood_type) ?? '' : '';
+      const itemName = p.item_type ? itemNameById.get(p.item_type) ?? '' : '';
 
       const imageUrl =
         p.image_path
           ? supabase.storage.from(BUCKET).getPublicUrl(p.image_path).data.publicUrl
           : '';
 
-      // Cast names into your union types so your “old” filter logic compiles.
-      // IMPORTANT: The names in Supabase should match your ItemType/WoodType values.
-      const woodType = woodName as unknown as WoodType;
-      const itemType = itemName as unknown as ItemType;
+      // ProductGrid expects your full Product type, so we provide safe defaults.
+      return ({
+        id: p.id,
+        name: p.name,
 
-      return {
-  id: p.id,
-  name: p.name,
+        // Required Product fields (safe defaults until you add them to DB/admin)
+        slug: p.slug ?? p.id,
+        category: p.category ?? 'Products',
+        description: p.description ?? '',
+        dimensions: p.dimensions ?? '',
+        finish: p.finish ?? '',
+        care: p.care ?? '',
+        materials: p.materials ?? '',
+        featured: Boolean(p.featured ?? false),
+        createdAt: p.created_at ?? new Date().toISOString(),
 
-  // 🔒 Required Product fields (safe defaults)
-  slug: (p as any).slug ?? p.id,
-  category: (p as any).category ?? 'Products',
-  description: (p as any).description ?? '',
-  dimensions: (p as any).dimensions ?? '',
+        // Existing fields
+        price: p.price ?? undefined,
+        soldOut: Boolean(p.sold_out),
+        size: (p.size ?? '') as any,
 
-  // If your Product type has these, defaults keep build passing
-  finish: (p as any).finish ?? '',
-  care: (p as any).care ?? '',
-  materials: (p as any).materials ?? '',
-  featured: Boolean((p as any).featured ?? false),
-  createdAt: (p as any).createdAt ?? p.created_at ?? new Date().toISOString(),
+        // These are used for filtering/display. We store NAMES here (not IDs).
+        // This keeps filters human-friendly and matches your filter UI.
+        woodType: (woodName || '') as any,
+        itemType: (itemName || '') as any,
 
-  price: p.price ?? undefined,
-  soldOut: Boolean(p.sold_out),
-  size: (p.size ?? '') as any,
-
-  woodType: woodType,
-  itemType: itemType,
-
-  // Must match ProductGrid expectation
-  image: imageUrl,
-} as unknown as Product;
-
+        // Image
+        image: imageUrl,
+      } as unknown) as Product;
     });
-  }, [dbProducts, woodTypes, itemTypes]);
+  }, [dbProducts, woodNameById, itemNameById]);
 
-  // 6) Filter products (same logic as before)
+  // 6) Filter products (robust + case-insensitive)
   const filteredProducts = useMemo(() => {
-    return allProducts.filter((product: Product) => {
+    // Cast filter arrays to strings to avoid TS union friction
+    const selectedItemTypes = (filters.itemTypes as unknown as string[]).map((s) =>
+      String(s).toLowerCase()
+    );
+    const selectedWoodTypes = (filters.woodTypes as unknown as string[]).map((s) =>
+      String(s).toLowerCase()
+    );
+
+    return allProducts.filter((product) => {
+      // In-stock
       if (filters.inStock && product.soldOut) return false;
 
-      if (filters.itemTypes.length > 0 && !filters.itemTypes.includes(product.itemType)) {
-        return false;
+      // Item type (only if user selected)
+      if (selectedItemTypes.length > 0) {
+        const item = String((product as any).itemType ?? '').toLowerCase();
+        if (!selectedItemTypes.includes(item)) return false;
       }
 
+      // Size
       if (filters.size && product.size !== filters.size) return false;
 
-      if (filters.woodTypes.length > 0) {
-        const productWood = String(product.woodType ?? '').toLowerCase();
-        const matchesWood = filters.woodTypes.some(
-          (wood) => String(wood).toLowerCase() === productWood
-        );
-        if (!matchesWood) return false;
+      // Wood type (only if user selected)
+      if (selectedWoodTypes.length > 0) {
+        const wood = String((product as any).woodType ?? '').toLowerCase();
+        if (!selectedWoodTypes.includes(wood)) return false;
       }
 
       return true;
@@ -227,11 +251,13 @@ function ProductsContent() {
               itemTypes={itemTypes}
             />
 
-            {/* Product Grid (back to normal) */}
+            {/* Product Grid */}
             <div className="flex-1 min-w-0">
               <div className="mb-6 flex items-center justify-between">
                 <p className="text-sm text-neutral-500">
-                  {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+                  {loading
+                    ? 'Loading…'
+                    : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'item' : 'items'}`}
                 </p>
               </div>
 
