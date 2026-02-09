@@ -5,35 +5,28 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 
 import { supabase } from '@/lib/supabaseClient';
-import { GalleryFilters, ProductGrid } from '@/components';
+import { GalleryFilters } from '@/components';
 import {
   GalleryFilters as GalleryFiltersType,
   DEFAULT_FILTERS,
-  Product,
 } from '@/types/product';
 import { parseFiltersFromParams, serializeFiltersToParams } from '@/lib/filter-utils';
 
 type FilterOption = { id: string; name: string };
 
-/** ✅ CHANGE THESE IF YOUR NAMES DIFFER */
-const PRODUCTS_TABLE = 'products';
-const BUCKET = 'products'; // e.g. 'product-images' or whatever your Storage bucket is called
-
-// Shape coming from Supabase table (adjust field names if yours differ)
 type DbProduct = {
   id: string;
   name: string;
-  price?: number | null;
-  sold_out?: boolean | null;
-  size?: string | null;
-  item_type?: string | null;   // could be id or name depending on your schema
-  wood_type?: string | null;   // could be id or name depending on your schema
-  image_path?: string | null;  // storage path like: "products/abc.jpg"
-  is_active?: boolean | null;
-  sort_order?: number | null;
-  created_at?: string | null;
+  sold_out: boolean | null;
+  size: string | null;
+  item_type: string | null;
+  wood_type: string | null;
+  image_path: string | null;
+  is_active: boolean | null;
 };
 
+const PRODUCTS_TABLE = 'products';
+const BUCKET = 'products'; // <-- change this if your Storage bucket name is different
 function ProductsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,155 +36,104 @@ function ProductsContent() {
 
   const [woodTypes, setWoodTypes] = useState<FilterOption[]>([]);
   const [itemTypes, setItemTypes] = useState<FilterOption[]>([]);
+  const [products, setProducts] = useState<DbProduct[]>([]);
 
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
-
-  // 1) Initialize filters from URL params
+  /* -------------------------------
+     1) Init filters from URL
+  -------------------------------- */
   useEffect(() => {
-    const parsedFilters = parseFiltersFromParams(searchParams);
-    setFilters(parsedFilters);
+    const parsed = parseFiltersFromParams(searchParams);
+    setFilters(parsed);
     setIsInitialized(true);
   }, [searchParams]);
 
-  // 2) Load active filter options from Supabase
+  /* -------------------------------
+     2) Load filter options
+  -------------------------------- */
   useEffect(() => {
     const loadOptions = async () => {
-      const { data: woods, error: woodErr } = await supabase
+      const { data: woods } = await supabase
         .from('wood_types')
         .select('id, name')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+        .eq('is_active', true);
 
-      if (woodErr) console.error('Error loading wood types:', woodErr);
-      else setWoodTypes((woods ?? []) as FilterOption[]);
-
-      const { data: items, error: itemErr } = await supabase
+      const { data: items } = await supabase
         .from('item_types')
         .select('id, name')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+        .eq('is_active', true);
 
-      if (itemErr) console.error('Error loading item types:', itemErr);
-      else setItemTypes((items ?? []) as FilterOption[]);
+      setWoodTypes(woods ?? []);
+      setItemTypes(items ?? []);
     };
 
     loadOptions();
   }, []);
 
-  // ✅ 3) Load products from Supabase (NOT placeholders)
+  /* -------------------------------
+     3) Load products from Supabase
+  -------------------------------- */
   useEffect(() => {
     const loadProducts = async () => {
-      setLoadingProducts(true);
-
-      // Pull everything you need from your products table
       const { data, error } = await supabase
         .from(PRODUCTS_TABLE)
-        .select(
-          'id, name, price, sold_out, size, item_type, wood_type, image_path, is_active, sort_order, created_at'
-        )
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: false });
+        .select('*');
 
-      if (error) {
-        console.error('Error loading products:', error);
-        setAllProducts([]);
-        setLoadingProducts(false);
-        return;
+      console.log('RAW PRODUCTS:', data);
+      console.log('PRODUCT ERROR:', error);
+
+      if (!error && data) {
+        setProducts(data as DbProduct[]);
       }
-
-      const rows = (data ?? []) as DbProduct[];
-
-      // If you use is_active, hide inactive; if you don't, this will keep everything.
-      const activeRows = rows.filter((p) => p.is_active !== false);
-
-      // Convert image_path -> usable URL + map into your frontend Product type
-      const mapped: Product[] = activeRows.map((p) => {
-        const imagePath = p.image_path ?? '';
-
-        // If your bucket is PUBLIC, this works.
-        const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(imagePath);
-        const imageUrl = publicUrlData?.publicUrl ?? '';
-
-        return {
-          id: p.id,
-          name: p.name,
-          price: p.price ?? undefined,
-
-          // ⚠️ Match these to whatever your Product type expects
-          soldOut: Boolean(p.sold_out),
-          size: (p.size ?? '') as any,
-          itemType: (p.item_type ?? '') as any,
-          woodType: (p.wood_type ?? '') as any,
-
-          // Common field names are `image` or `imageUrl` depending on your Product type.
-          // If your Product type expects `image`, keep `image`.
-          image: imageUrl,
-        } as unknown as Product;
-      });
-
-      setAllProducts(mapped);
-      setLoadingProducts(false);
     };
 
     loadProducts();
   }, []);
 
-  // 4) Update URL when filters change
+  /* -------------------------------
+     4) Handle filter changes
+  -------------------------------- */
   const handleFiltersChange = useCallback(
     (newFilters: GalleryFiltersType) => {
       setFilters(newFilters);
-      const queryString = serializeFiltersToParams(newFilters);
-      router.push(`/products${queryString}`, { scroll: false });
+      const query = serializeFiltersToParams(newFilters);
+      router.push(`/products${query}`, { scroll: false });
     },
     [router]
   );
 
-  // 5) Filter products (now from Supabase `allProducts`)
+  /* -------------------------------
+     5) Apply filters (NO GRID)
+  -------------------------------- */
   const filteredProducts = useMemo(() => {
-    return allProducts.filter((product: Product) => {
-      // In Stock filter
-      if (filters.inStock && product.soldOut) return false;
+    return products.filter((p) => {
+      if (filters.inStock && p.sold_out) return false;
 
-      // Item Type filter
-      if (filters.itemTypes.length > 0 && !filters.itemTypes.includes(product.itemType)) {
-        return false;
+      if (filters.size && p.size !== filters.size) return false;
+
+      if (filters.itemTypes.length > 0) {
+        const itemName =
+          itemTypes.find((i) => i.id === p.item_type)?.name ?? '';
+        if (!filters.itemTypes.includes(itemName)) return false;
       }
 
-      // Size filter
-      if (filters.size && product.size !== filters.size) return false;
-
-      // Wood Type filter (case-insensitive OR within selection)
       if (filters.woodTypes.length > 0) {
-        const productWood = String(product.woodType ?? '').toLowerCase();
-        const matchesWood = filters.woodTypes.some(
-          (wood) => String(wood).toLowerCase() === productWood
-        );
-        if (!matchesWood) return false;
+        const woodName =
+          woodTypes.find((w) => w.id === p.wood_type)?.name ?? '';
+        if (!filters.woodTypes.includes(woodName)) return false;
       }
 
       return true;
     });
-  }, [filters, allProducts]);
+  }, [products, filters, woodTypes, itemTypes]);
 
-  // Loading skeleton until URL filters initialize
   if (!isInitialized) {
-    return (
-      <div className="min-h-screen pt-32 sm:pt-40">
-        <div className="container-wide">
-          <div className="animate-pulse">
-            <div className="h-10 w-48 bg-neutral-200 rounded-lg mb-4" />
-            <div className="h-6 w-96 bg-neutral-100 rounded-lg" />
-          </div>
-        </div>
-      </div>
-    );
+    return <div className="pt-40 text-center">Loading…</div>;
   }
 
   return (
     <>
       {/* Hero */}
-      <section className="pt-32 sm:pt-40 pb-12 sm:pb-16 bg-gradient-to-b from-woodshop-50 to-white">
+      <section className="pt-32 sm:pt-40 pb-12 bg-gradient-to-b from-woodshop-50 to-white">
         <div className="container-wide">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -200,40 +142,93 @@ function ProductsContent() {
           >
             <h1 className="heading-display">Products</h1>
             <p className="mt-4 body-large max-w-2xl">
-              Browse our collection of handcrafted wooden goods. Each piece is unique and built to last.
+              Browse our handcrafted pieces.
             </p>
           </motion.div>
         </div>
       </section>
 
-      {/* Products Content */}
-      <section className="pb-24 sm:pb-32">
-        <div className="container-wide">
-          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-            {/* Filters */}
-            <GalleryFilters
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              woodTypes={woodTypes}
-              itemTypes={itemTypes}
+      {/* Content */}
+      <section className="pb-24">
+        <div className="container-wide flex flex-col lg:flex-row gap-10">
+          <GalleryFilters
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            woodTypes={woodTypes}
+            itemTypes={itemTypes}
+          />
+
+          <div className="flex-1">
+            <p className="text-sm text-neutral-500 mb-4">
+              {filteredProducts.length} items
+            </p>
+
+            {/* ✅ DEBUG LIST — GUARANTEED TO RENDER */}
+            {/* ✅ Clean Grid */}
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  {filteredProducts.map((p) => {
+    const woodName = woodTypes.find((w) => w.id === p.wood_type)?.name ?? '—';
+    const itemName = itemTypes.find((i) => i.id === p.item_type)?.name ?? '—';
+
+    const imageUrl =
+      p.image_path
+        ? supabase.storage.from(BUCKET).getPublicUrl(p.image_path).data.publicUrl
+        : '';
+
+    return (
+      <div
+        key={p.id}
+        className="group overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition hover:shadow-md"
+      >
+        {/* Image */}
+        <div className="aspect-[4/3] w-full bg-neutral-100 overflow-hidden">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={p.name}
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+              loading="lazy"
             />
-
-            {/* Product Grid */}
-            <div className="flex-1 min-w-0">
-              <div className="mb-6 flex items-center justify-between">
-                <p className="text-sm text-neutral-500">
-                  {loadingProducts ? 'Loading…' : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'item' : 'items'}`}
-                </p>
-              </div>
-
-              <ProductGrid products={filteredProducts} />
-
-              {!loadingProducts && filteredProducts.length === 0 && (
-                <p className="mt-10 text-sm text-neutral-500">
-                  No products match these filters.
-                </p>
-              )}
+          ) : (
+            <div className="h-full w-full flex items-center justify-center text-xs text-neutral-500">
+              No image
             </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-5">
+          <h3 className="text-base font-semibold text-neutral-900">{p.name}</h3>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700">
+              {itemName}
+            </span>
+            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700">
+              {woodName}
+            </span>
+            {p.size ? (
+              <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700">
+                {p.size}
+              </span>
+            ) : null}
+            {p.sold_out ? (
+              <span className="rounded-full bg-red-50 px-3 py-1 text-xs text-red-700">
+                Sold out
+              </span>
+            ) : (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
+                In stock
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
+            
           </div>
         </div>
       </section>
@@ -243,18 +238,7 @@ function ProductsContent() {
 
 export default function ProductsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen pt-32 sm:pt-40">
-          <div className="container-wide">
-            <div className="animate-pulse">
-              <div className="h-10 w-48 bg-neutral-200 rounded-lg mb-4" />
-              <div className="h-6 w-96 bg-neutral-100 rounded-lg" />
-            </div>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="pt-40 text-center">Loading…</div>}>
       <ProductsContent />
     </Suspense>
   );
