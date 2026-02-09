@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
+
 import {
-  supabase,
   checkIsAdmin,
   fetchProducts,
   fetchWoodTypes,
@@ -16,7 +16,9 @@ import {
   DbWoodType,
   DbItemType,
   DbProduct,
+  uploadProductImage,
 } from '@/lib/supabaseClient';
+
 import { cn } from '@/lib/utils';
 
 type ProductFormData = {
@@ -24,7 +26,7 @@ type ProductFormData = {
   description: string;
   price: string; // USD string for input
   buy_url: string;
-  image_url: string;
+  image_url: string; // will be set from upload or manual URL
   size_label: string;
   weight_lbs: string;
   is_in_stock: boolean;
@@ -48,10 +50,11 @@ const emptyFormData: ProductFormData = {
 export default function AdminProductsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
   const [products, setProducts] = useState<DbProductWithRelations[]>([]);
   const [woodTypes, setWoodTypes] = useState<DbWoodType[]>([]);
   const [itemTypes, setItemTypes] = useState<DbItemType[]>([]);
-  
+
   // Form state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -59,8 +62,14 @@ export default function AdminProductsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // ✅ Image upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   useEffect(() => {
     checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function checkAuth() {
@@ -88,6 +97,11 @@ export default function AdminProductsPage() {
     setEditingId(null);
     setIsFormOpen(true);
     setError('');
+
+    // reset image state
+    setImageFile(null);
+    setImagePreview(null);
+    setIsUploadingImage(false);
   }
 
   function openEditForm(product: DbProductWithRelations) {
@@ -103,9 +117,15 @@ export default function AdminProductsPage() {
       wood_type_id: product.wood_type_id || '',
       item_type_id: product.item_type_id || '',
     });
+
     setEditingId(product.id);
     setIsFormOpen(true);
     setError('');
+
+    // reset image state (keep existing image_url as preview if no new file)
+    setImageFile(null);
+    setImagePreview(null);
+    setIsUploadingImage(false);
   }
 
   function closeForm() {
@@ -113,6 +133,27 @@ export default function AdminProductsPage() {
     setEditingId(null);
     setFormData(emptyFormData);
     setError('');
+
+    setImageFile(null);
+    setImagePreview(null);
+    setIsUploadingImage(false);
+  }
+
+  function handlePickImage(file: File) {
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  async function uploadIfNeeded(): Promise<string | null> {
+    if (!imageFile) return null;
+
+    setIsUploadingImage(true);
+    try {
+      const url = await uploadProductImage(imageFile);
+      return url;
+    } finally {
+      setIsUploadingImage(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -122,13 +163,20 @@ export default function AdminProductsPage() {
 
     try {
       const priceInCents = Math.round(parseFloat(formData.price || '0') * 100);
-      
+
+      // ✅ If user selected a local image, upload and override image_url
+      let finalImageUrl: string | null = formData.image_url || null;
+      if (imageFile) {
+        const uploadedUrl = await uploadIfNeeded();
+        if (uploadedUrl) finalImageUrl = uploadedUrl;
+      }
+
       const productData: Omit<DbProduct, 'id' | 'created_at' | 'updated_at'> = {
         name: formData.name,
         description: formData.description || null,
         price_cents: priceInCents,
         buy_url: formData.buy_url || null,
-        image_url: formData.image_url || null,
+        image_url: finalImageUrl,
         size_label: formData.size_label || null,
         weight_lbs: formData.weight_lbs ? parseFloat(formData.weight_lbs) : null,
         is_in_stock: formData.is_in_stock,
@@ -153,7 +201,7 @@ export default function AdminProductsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('Are you sure you want to delete this product?')) return;
-    
+
     try {
       await deleteProduct(id);
       await loadData();
@@ -170,6 +218,11 @@ export default function AdminProductsPage() {
       alert(err instanceof Error ? err.message : 'Failed to update stock status');
     }
   }
+
+  const modalImageSrc = useMemo(() => {
+    // Show selected file preview first, otherwise existing image_url
+    return imagePreview || formData.image_url || '';
+  }, [imagePreview, formData.image_url]);
 
   if (isLoading) {
     return (
@@ -220,12 +273,24 @@ export default function AdminProductsPage() {
           <table className="w-full">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Product</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Price</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Type</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Wood</th>
-                <th className="text-center px-6 py-4 text-sm font-semibold text-neutral-900">In Stock</th>
-                <th className="text-right px-6 py-4 text-sm font-semibold text-neutral-900">Actions</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Product
+                </th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Price
+                </th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Type
+                </th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Wood
+                </th>
+                <th className="text-center px-6 py-4 text-sm font-semibold text-neutral-900">
+                  In Stock
+                </th>
+                <th className="text-right px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -258,12 +323,8 @@ export default function AdminProductsPage() {
                     <td className="px-6 py-4 text-neutral-600">
                       ${(product.price_cents / 100).toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 text-neutral-600">
-                      {product.item_types?.name || '—'}
-                    </td>
-                    <td className="px-6 py-4 text-neutral-600">
-                      {product.wood_types?.name || '—'}
-                    </td>
+                    <td className="px-6 py-4 text-neutral-600">{product.item_types?.name || '—'}</td>
+                    <td className="px-6 py-4 text-neutral-600">{product.wood_types?.name || '—'}</td>
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => handleToggleStock(product)}
@@ -274,7 +335,11 @@ export default function AdminProductsPage() {
                             : 'bg-red-100 text-red-600 hover:bg-red-200'
                         )}
                       >
-                        {product.is_in_stock ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                        {product.is_in_stock ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <X className="w-4 h-4" />
+                        )}
                       </button>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -335,9 +400,7 @@ export default function AdminProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Description
-                  </label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Description</label>
                   <textarea
                     rows={3}
                     value={formData.description}
@@ -348,9 +411,7 @@ export default function AdminProductsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Price (USD)
-                    </label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Price (USD)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -362,9 +423,7 @@ export default function AdminProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Weight (lbs)
-                    </label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Weight (lbs)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -378,9 +437,7 @@ export default function AdminProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Buy URL
-                  </label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Buy URL</label>
                   <input
                     type="url"
                     value={formData.buy_url}
@@ -390,23 +447,60 @@ export default function AdminProductsPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Image URL
-                  </label>
+                {/* ✅ NEW: Local upload + preview */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-neutral-700">Product Image</label>
+
                   <input
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                    placeholder="https://..."
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handlePickImage(f);
+                    }}
+                    className="block w-full text-sm"
                   />
+
+                  {modalImageSrc && (
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={modalImageSrc}
+                        alt="Preview"
+                        className="w-24 h-24 rounded-xl object-cover border border-neutral-200 bg-neutral-50"
+                      />
+                      <div className="text-sm text-neutral-600">
+                        {isUploadingImage ? (
+                          <span className="inline-flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" /> Uploading…
+                          </span>
+                        ) : imageFile ? (
+                          <span>Selected: {imageFile.name}</span>
+                        ) : formData.image_url ? (
+                          <span>Using saved image URL</span>
+                        ) : (
+                          <span>No image yet</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Optional manual URL (still allowed) */}
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-2">
+                      Or paste an Image URL (optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.image_url}
+                      onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                      className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                      placeholder="https://..."
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Size Label
-                  </label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Size Label</label>
                   <input
                     type="text"
                     value={formData.size_label}
@@ -418,9 +512,7 @@ export default function AdminProductsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Wood Type
-                    </label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Wood Type</label>
                     <select
                       value={formData.wood_type_id}
                       onChange={(e) => setFormData({ ...formData, wood_type_id: e.target.value })}
@@ -428,14 +520,14 @@ export default function AdminProductsPage() {
                     >
                       <option value="">Select wood type</option>
                       {woodTypes.map((wt) => (
-                        <option key={wt.id} value={wt.id}>{wt.name}</option>
+                        <option key={wt.id} value={wt.id}>
+                          {wt.name}
+                        </option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Item Type
-                    </label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Item Type</label>
                     <select
                       value={formData.item_type_id}
                       onChange={(e) => setFormData({ ...formData, item_type_id: e.target.value })}
@@ -443,7 +535,9 @@ export default function AdminProductsPage() {
                     >
                       <option value="">Select item type</option>
                       {itemTypes.map((it) => (
-                        <option key={it.id} value={it.id}>{it.name}</option>
+                        <option key={it.id} value={it.id}>
+                          {it.name}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -466,12 +560,13 @@ export default function AdminProductsPage() {
                     type="button"
                     onClick={closeForm}
                     className="flex-1 px-6 py-3 bg-neutral-100 text-neutral-900 font-medium rounded-full hover:bg-neutral-200 transition-colors"
+                    disabled={isSaving || isUploadingImage}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={isSaving}
+                    disabled={isSaving || isUploadingImage}
                     className="flex-1 px-6 py-3 bg-neutral-900 text-white font-medium rounded-full hover:bg-neutral-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                   >
                     {isSaving ? (
@@ -479,11 +574,19 @@ export default function AdminProductsPage() {
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Saving...
                       </>
+                    ) : editingId ? (
+                      'Update Product'
                     ) : (
-                      editingId ? 'Update Product' : 'Create Product'
+                      'Create Product'
                     )}
                   </button>
                 </div>
+
+                {imageFile && (
+                  <p className="text-xs text-neutral-500">
+                    Note: The selected image will upload when you click Save.
+                  </p>
+                )}
               </form>
             </div>
           </div>
