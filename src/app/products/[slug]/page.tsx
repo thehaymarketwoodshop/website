@@ -8,9 +8,46 @@ type PageProps = { params: { slug: string } };
 const SUPABASE_BUCKET_PUBLIC_URL =
   "https://qrmmqaxeogfuakctmoku.supabase.co/storage/v1/object/public/product-images/";
 
+function normalizeToPublicUrl(raw: string): string {
+  const v = (raw || "").trim();
+  if (!v) return "";
+  if (v.startsWith("http")) return v;
+  // treat as storage path like "products/xxx.jpg"
+  return `${SUPABASE_BUCKET_PUBLIC_URL}${v.replace(/^\/+/, "")}`;
+}
+
+function coerceStringArray(value: unknown): string[] {
+  // Case 1: already an array
+  if (Array.isArray(value)) {
+    return value.filter((x) => typeof x === "string" && x.trim().length > 0) as string[];
+  }
+
+  // Case 2: stringified JSON array: '["a","b"]'
+  if (typeof value === "string") {
+    const s = value.trim();
+    if (!s) return [];
+
+    // try parse JSON array
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((x) => typeof x === "string" && x.trim().length > 0) as string[];
+      }
+    } catch {
+      // ignore
+    }
+
+    // Case 3: single string URL/path stored in the "array" column
+    // (not ideal schema, but we can still handle it)
+    return [s];
+  }
+
+  return [];
+}
+
 export default async function ProductDetailPage({ params }: PageProps) {
-  // IMPORTANT:
-  // Your [slug] is currently being used as the PRODUCT ID
+  // Your [slug] is currently being used as PRODUCT ID
   const id = params.slug;
 
   const { data: product, error } = await supabase
@@ -62,31 +99,23 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const weightText = (product as any).weight_text ?? "";
   const care = (product as any).care ?? "";
 
-  const priceCents = (product as any).price_cents as number | null;
+  const priceCents = (product as any).price_cents as number | null | undefined;
   const price = typeof priceCents === "number" ? priceCents / 100 : null;
 
   const buyUrl = ((product as any).buy_url ?? "") as string;
 
   // -----------------------------
-  // Image handling (ROBUST)
+  // Image handling (VERY robust)
   // -----------------------------
   const imageUrlsRaw = (product as any).image_urls;
   const imageUrlSingleRaw = (product as any).image_url;
 
-  const imageUrls = Array.isArray(imageUrlsRaw) ? imageUrlsRaw : [];
+  const imageUrls = coerceStringArray(imageUrlsRaw);
   const imageUrlSingle = typeof imageUrlSingleRaw === "string" ? imageUrlSingleRaw : "";
 
   const rawImage = (imageUrls[0] || imageUrlSingle || "").trim();
+  const finalImageUrl = normalizeToPublicUrl(rawImage);
 
-  const finalImageUrl = rawImage
-    ? rawImage.startsWith("http")
-      ? rawImage
-      : `${SUPABASE_BUCKET_PUBLIC_URL}${rawImage.replace(/^\/+/, "")}`
-    : "";
-
-  // -----------------------------
-  // Render
-  // -----------------------------
   return (
     <div className="min-h-screen pt-28 sm:pt-36 pb-16">
       <div className="container-wide">
@@ -117,17 +146,15 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
           {/* DETAILS */}
           <div>
-            <h1 className="text-3xl sm:text-4xl font-semibold text-neutral-900">
-              {name}
-            </h1>
+            <h1 className="text-3xl sm:text-4xl font-semibold text-neutral-900">{name}</h1>
 
-            {typeof price === "number" && (
+            {typeof price === "number" ? (
               <p className="mt-4 text-xl font-semibold text-neutral-900">
                 ${price.toFixed(2)}
               </p>
-            )}
+            ) : null}
 
-            {buyUrl && (
+            {buyUrl ? (
               <div className="mt-6">
                 <a
                   href={buyUrl}
@@ -138,9 +165,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   Buy on Etsy
                 </a>
               </div>
-            )}
+            ) : null}
 
-            {/* ORDERED CONTENT */}
+            {/* ORDER: Description → Materials → Dimensions → Weight → Care */}
             <div className="mt-8 space-y-8">
               <div>
                 <h2 className="text-lg font-semibold text-neutral-900">Description</h2>
@@ -177,6 +204,16 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 </p>
               </div>
             </div>
+
+            {/* OPTIONAL DEBUG (uncomment if needed)
+            <pre className="mt-10 text-xs bg-neutral-50 p-4 rounded-xl overflow-auto">
+              {JSON.stringify(
+                { image_urls_raw: (product as any).image_urls, image_url: (product as any).image_url, finalImageUrl },
+                null,
+                2
+              )}
+            </pre>
+            */}
           </div>
         </div>
       </div>
