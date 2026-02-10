@@ -15,7 +15,6 @@ import { parseFiltersFromParams, serializeFiltersToParams } from '@/lib/filter-u
 
 type FilterOption = { id: string; name: string };
 
-// ✅ Your actual bucket (based on the URL you pasted)
 const STORAGE_BUCKET = 'product-images';
 const PRODUCTS_TABLE = 'products';
 
@@ -23,50 +22,61 @@ function isHttpUrl(v: string) {
   return v.startsWith('http://') || v.startsWith('https://');
 }
 
-// DB row shape aligned to your ADMIN schema
 type DbProduct = {
   id: string;
   name: string;
 
-  // admin schema
   price_cents?: number | null;
   is_in_stock?: boolean | null;
   buy_url?: string | null;
 
-  // relations (admin)
   wood_type_id?: string | null;
   item_type_id?: string | null;
 
-  // images (admin)
-  image_url?: string | null;   // can be full URL OR storage path
-  image_path?: string | null;  // legacy fallback
+  image_url?: string | null;     // full URL OR storage path
+  image_urls?: string[] | null;  // ✅ new: multiple
+  image_path?: string | null;    // legacy fallback
 
-  // display fields (optional)
   description?: string | null;
   dimensions?: string | null;
   size_label?: string | null;
 
   created_at?: string | null;
 
-  // optional fields used by your Product type
   slug?: string | null;
   category?: string | null;
-  finish?: string | null;
   care?: string | null;
-  materials?: string | null;
   featured?: boolean | null;
 };
 
-function resolveImageUrl(p: DbProduct): string {
-  const raw = p.image_url || p.image_path || '';
+function resolveOneImageUrl(raw: string): string {
   if (!raw) return '';
-
-  // If admin stored a full public URL, use it directly
   if (isHttpUrl(raw)) return raw;
-
-  // Otherwise treat it as a storage path
-  // Example stored path might be: "products/uuid.jpg"
   return supabase.storage.from(STORAGE_BUCKET).getPublicUrl(raw).data.publicUrl;
+}
+
+function resolveImageUrls(p: DbProduct): string[] {
+  const urls: string[] = [];
+
+  // Prefer multi-image column
+  if (Array.isArray(p.image_urls)) {
+    for (const raw of p.image_urls) {
+      const resolved = resolveOneImageUrl(String(raw || ''));
+      if (resolved) urls.push(resolved);
+    }
+  }
+
+  // Fallback single url/path
+  if (p.image_url) {
+    const resolved = resolveOneImageUrl(p.image_url);
+    if (resolved) urls.push(resolved);
+  } else if (p.image_path) {
+    const resolved = resolveOneImageUrl(p.image_path);
+    if (resolved) urls.push(resolved);
+  }
+
+  // De-dupe
+  return Array.from(new Set(urls));
 }
 
 function ProductsContent() {
@@ -82,14 +92,12 @@ function ProductsContent() {
   const [dbProducts, setDbProducts] = useState<DbProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 1) Initialize filters from URL params
   useEffect(() => {
     const parsed = parseFiltersFromParams(searchParams);
     setFilters(parsed);
     setIsInitialized(true);
   }, [searchParams]);
 
-  // 2) Load filter option lists
   useEffect(() => {
     const loadOptions = async () => {
       const { data: woods, error: woodErr } = await supabase
@@ -114,7 +122,6 @@ function ProductsContent() {
     loadOptions();
   }, []);
 
-  // 3) Load products from Supabase
   useEffect(() => {
     const loadProducts = async () => {
       setLoading(true);
@@ -135,7 +142,6 @@ function ProductsContent() {
     loadProducts();
   }, []);
 
-  // 4) Update URL when filters change
   const handleFiltersChange = useCallback(
     (newFilters: GalleryFiltersType) => {
       setFilters(newFilters);
@@ -145,7 +151,6 @@ function ProductsContent() {
     [router]
   );
 
-  // Helpers: lookup FK id -> name
   const woodNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const w of woodTypes) map.set(w.id, w.name);
@@ -158,57 +163,49 @@ function ProductsContent() {
     return map;
   }, [itemTypes]);
 
-  // 5) Map DB -> Product (shape required by ProductGrid)
   const allProducts: Product[] = useMemo(() => {
     return dbProducts.map((p) => {
       const woodName = p.wood_type_id ? woodNameById.get(p.wood_type_id) ?? '' : '';
       const itemName = p.item_type_id ? itemNameById.get(p.item_type_id) ?? '' : '';
-      
-      const imageUrl = resolveImageUrl(p);
+
+      const images = resolveImageUrls(p);
+      const imageUrl = images[0] || '';
 
       const price =
         typeof p.price_cents === 'number' ? p.price_cents / 100 : undefined;
 
       const soldOut = !(p.is_in_stock ?? true);
-
-      // If your filter UI uses "size", we’ll map it from dimensions/size_label
       const size = (p.dimensions ?? p.size_label ?? '') as any;
-return ({
-  id: p.id,
-  name: p.name,
 
-  slug: p.slug ?? p.id,
-  category: p.category ?? 'Products',
-  description: p.description ?? '',
-  dimensions: p.dimensions ?? '',
-  finish: p.finish ?? '',
-  care: p.care ?? '',
-  materials: p.materials ?? '',
-  featured: Boolean(p.featured ?? false),
-  createdAt: p.created_at ?? new Date().toISOString(),
+      return ({
+        id: p.id,
+        name: p.name,
 
-  // Pricing / stock
-  price,
-  soldOut,
-  size,
+        slug: p.slug ?? p.id,
+        category: p.category ?? 'Products',
+        description: p.description ?? '',
+        dimensions: p.dimensions ?? '',
+        care: p.care ?? '',
+        featured: Boolean(p.featured ?? false),
+        createdAt: p.created_at ?? new Date().toISOString(),
 
-  // Filter/display names
-  woodType: (woodName || '') as any,
-  itemType: (itemName || '') as any,
+        price,
+        soldOut,
+        size,
 
-  // ✅ THIS IS THE IMPORTANT LINE
-  etsyUrl: p.buy_url ?? '',
+        woodType: (woodName || '') as any,
+        itemType: (itemName || '') as any,
 
-  // Images
-  image: imageUrl,
-  imageUrl: imageUrl,
-  images: imageUrl ? [imageUrl] : [],
-} as unknown) as Product;
+        // ✅ Etsy link for ProductCard
+        etsyUrl: p.buy_url ?? '',
 
+        image: imageUrl,
+        imageUrl: imageUrl,
+        images,
+      } as unknown) as Product;
     });
   }, [dbProducts, woodNameById, itemNameById]);
 
-  // 6) Filter products
   const filteredProducts = useMemo(() => {
     const selectedItemTypes = (filters.itemTypes as unknown as string[]).map((s) =>
       String(s).toLowerCase()
@@ -218,19 +215,15 @@ return ({
     );
 
     return allProducts.filter((product) => {
-      // In-stock
       if (filters.inStock && product.soldOut) return false;
 
-      // Item type
       if (selectedItemTypes.length > 0) {
         const item = String((product as any).itemType ?? '').toLowerCase();
         if (!selectedItemTypes.includes(item)) return false;
       }
 
-      // Size
       if (filters.size && product.size !== filters.size) return false;
 
-      // Wood type
       if (selectedWoodTypes.length > 0) {
         const wood = String((product as any).woodType ?? '').toLowerCase();
         if (!selectedWoodTypes.includes(wood)) return false;
@@ -255,7 +248,6 @@ return ({
 
   return (
     <>
-      {/* Hero */}
       <section className="pt-32 sm:pt-40 pb-12 sm:pb-16 bg-gradient-to-b from-woodshop-50 to-white">
         <div className="container-wide">
           <motion.div
@@ -271,11 +263,9 @@ return ({
         </div>
       </section>
 
-      {/* Products Content */}
       <section className="pb-24 sm:pb-32">
         <div className="container-wide">
           <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-            {/* Filters */}
             <GalleryFilters
               filters={filters}
               onFiltersChange={handleFiltersChange}
@@ -283,7 +273,6 @@ return ({
               itemTypes={itemTypes}
             />
 
-            {/* Product Grid */}
             <div className="flex-1 min-w-0">
               <div className="mb-6 flex items-center justify-between">
                 <p className="text-sm text-neutral-500">

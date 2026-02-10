@@ -13,9 +13,6 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
-  // Support both naming conventions so nothing breaks while you transition:
-  // - product.etsyUrl (current UI)
-  // - product.buyUrl / product.buy_url (DB/admin mapping)
   const etsyUrl =
     (product as any).etsyUrl ||
     (product as any).buyUrl ||
@@ -29,12 +26,9 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     '/placeholders/placeholder.jpg';
 
   const handleEtsyClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    // This is the key: prevent the parent <Link> navigation.
     e.preventDefault();
     e.stopPropagation();
-
     if (!etsyUrl) return;
-
     window.open(etsyUrl, '_blank', 'noopener,noreferrer');
   };
 
@@ -47,7 +41,6 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     >
       <Link href={`/products/${product.slug}`} className="block">
         <div className="card overflow-hidden">
-          {/* Image Container */}
           <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
             <Image
               src={imageSrc}
@@ -68,15 +61,17 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
             )}
           </div>
 
-          {/* Content */}
           <div className="p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <h3 className="heading-card truncate group-hover:text-neutral-600 transition-colors">
                   {product.name}
                 </h3>
+
+                {/* Keep this if you want wood under name on grid; remove if you don't */}
                 <p className="mt-1 text-sm text-neutral-500">{(product as any).woodType || ''}</p>
               </div>
+
               {typeof product.price === 'number' && (
                 <span className="text-lg font-semibold text-neutral-900 whitespace-nowrap">
                   ${product.price.toLocaleString()}
@@ -84,7 +79,6 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               )}
             </div>
 
-            {/* Purchase Button */}
             <div className="mt-4">
               {product.soldOut ? (
                 <button

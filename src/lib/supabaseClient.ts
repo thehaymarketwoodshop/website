@@ -168,6 +168,7 @@ export async function createProduct(data: {
   price_cents?: number;
   buy_url?: string | null;
   image_url?: string | null;
+  image_urls: string[] | null;
   size_label?: string | null;
   weight_lbs?: number | null;
   is_in_stock?: boolean;
