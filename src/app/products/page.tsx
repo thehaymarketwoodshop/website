@@ -15,32 +15,59 @@ import { parseFiltersFromParams, serializeFiltersToParams } from '@/lib/filter-u
 
 type FilterOption = { id: string; name: string };
 
-// 🔧 Update this if your bucket name differs
-const BUCKET = 'products';
+// ✅ Your actual bucket (based on the URL you pasted)
+const STORAGE_BUCKET = 'product-images';
 const PRODUCTS_TABLE = 'products';
 
-// DB row shape (kept flexible so you don't fight schema changes)
+function isHttpUrl(v: string) {
+  return v.startsWith('http://') || v.startsWith('https://');
+}
+
+// DB row shape aligned to your ADMIN schema
 type DbProduct = {
   id: string;
   name: string;
-  price?: number | null;
-  sold_out?: boolean | null;
-  size?: string | null;
-  item_type?: string | null; // FK id
-  wood_type?: string | null; // FK id
-  image_path?: string | null; // storage path
-  created_at?: string | null;
 
-  // optional fields (if you add them later)
-  slug?: string | null;
-  category?: string | null;
+  // admin schema
+  price_cents?: number | null;
+  is_in_stock?: boolean | null;
+  buy_url?: string | null;
+
+  // relations (admin)
+  wood_type_id?: string | null;
+  item_type_id?: string | null;
+
+  // images (admin)
+  image_url?: string | null;   // can be full URL OR storage path
+  image_path?: string | null;  // legacy fallback
+
+  // display fields (optional)
   description?: string | null;
   dimensions?: string | null;
+  size_label?: string | null;
+
+  created_at?: string | null;
+
+  // optional fields used by your Product type
+  slug?: string | null;
+  category?: string | null;
   finish?: string | null;
   care?: string | null;
   materials?: string | null;
   featured?: boolean | null;
 };
+
+function resolveImageUrl(p: DbProduct): string {
+  const raw = p.image_url || p.image_path || '';
+  if (!raw) return '';
+
+  // If admin stored a full public URL, use it directly
+  if (isHttpUrl(raw)) return raw;
+
+  // Otherwise treat it as a storage path
+  // Example stored path might be: "products/uuid.jpg"
+  return supabase.storage.from(STORAGE_BUCKET).getPublicUrl(raw).data.publicUrl;
+}
 
 function ProductsContent() {
   const router = useRouter();
@@ -92,7 +119,6 @@ function ProductsContent() {
     const loadProducts = async () => {
       setLoading(true);
 
-      // Use select('*') so you don't break when you add new columns later
       const { data, error } = await supabase.from(PRODUCTS_TABLE).select('*');
 
       if (error) {
@@ -135,51 +161,55 @@ function ProductsContent() {
   // 5) Map DB -> Product (shape required by ProductGrid)
   const allProducts: Product[] = useMemo(() => {
     return dbProducts.map((p) => {
-      const woodName = p.wood_type ? woodNameById.get(p.wood_type) ?? '' : '';
-      const itemName = p.item_type ? itemNameById.get(p.item_type) ?? '' : '';
+      const woodName = p.wood_type_id ? woodNameById.get(p.wood_type_id) ?? '' : '';
+      const itemName = p.item_type_id ? itemNameById.get(p.item_type_id) ?? '' : '';
+      
+      const imageUrl = resolveImageUrl(p);
 
-      const imageUrl =
-        p.image_path
-          ? supabase.storage.from(BUCKET).getPublicUrl(p.image_path).data.publicUrl
-          : '';
+      const price =
+        typeof p.price_cents === 'number' ? p.price_cents / 100 : undefined;
 
-      // ProductGrid expects your full Product type, so we provide safe defaults.
-      return ({
-        id: p.id,
-        name: p.name,
+      const soldOut = !(p.is_in_stock ?? true);
 
-        // Required Product fields (safe defaults until you add them to DB/admin)
-        slug: p.slug ?? p.id,
-        category: p.category ?? 'Products',
-        description: p.description ?? '',
-        dimensions: p.dimensions ?? '',
-        finish: p.finish ?? '',
-        care: p.care ?? '',
-        materials: p.materials ?? '',
-        featured: Boolean(p.featured ?? false),
-        createdAt: p.created_at ?? new Date().toISOString(),
+      // If your filter UI uses "size", we’ll map it from dimensions/size_label
+      const size = (p.dimensions ?? p.size_label ?? '') as any;
+return ({
+  id: p.id,
+  name: p.name,
 
-        // Existing fields
-        price: p.price ?? undefined,
-        soldOut: Boolean(p.sold_out),
-        size: (p.size ?? '') as any,
+  slug: p.slug ?? p.id,
+  category: p.category ?? 'Products',
+  description: p.description ?? '',
+  dimensions: p.dimensions ?? '',
+  finish: p.finish ?? '',
+  care: p.care ?? '',
+  materials: p.materials ?? '',
+  featured: Boolean(p.featured ?? false),
+  createdAt: p.created_at ?? new Date().toISOString(),
 
-        // These are used for filtering/display. We store NAMES here (not IDs).
-        // This keeps filters human-friendly and matches your filter UI.
-        woodType: (woodName || '') as any,
-        itemType: (itemName || '') as any,
+  // Pricing / stock
+  price,
+  soldOut,
+  size,
 
-        // Image
-        image: imageUrl,
-        imageUrl: imageUrl,
-        images: imageUrl ? [imageUrl] : [],
-      } as unknown) as Product;
+  // Filter/display names
+  woodType: (woodName || '') as any,
+  itemType: (itemName || '') as any,
+
+  // ✅ THIS IS THE IMPORTANT LINE
+  etsyUrl: p.buy_url ?? '',
+
+  // Images
+  image: imageUrl,
+  imageUrl: imageUrl,
+  images: imageUrl ? [imageUrl] : [],
+} as unknown) as Product;
+
     });
   }, [dbProducts, woodNameById, itemNameById]);
 
-  // 6) Filter products (robust + case-insensitive)
+  // 6) Filter products
   const filteredProducts = useMemo(() => {
-    // Cast filter arrays to strings to avoid TS union friction
     const selectedItemTypes = (filters.itemTypes as unknown as string[]).map((s) =>
       String(s).toLowerCase()
     );
@@ -191,7 +221,7 @@ function ProductsContent() {
       // In-stock
       if (filters.inStock && product.soldOut) return false;
 
-      // Item type (only if user selected)
+      // Item type
       if (selectedItemTypes.length > 0) {
         const item = String((product as any).itemType ?? '').toLowerCase();
         if (!selectedItemTypes.includes(item)) return false;
@@ -200,7 +230,7 @@ function ProductsContent() {
       // Size
       if (filters.size && product.size !== filters.size) return false;
 
-      // Wood type (only if user selected)
+      // Wood type
       if (selectedWoodTypes.length > 0) {
         const wood = String((product as any).woodType ?? '').toLowerCase();
         if (!selectedWoodTypes.includes(wood)) return false;

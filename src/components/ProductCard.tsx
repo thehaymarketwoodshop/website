@@ -13,6 +13,31 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
+  // Support both naming conventions so nothing breaks while you transition:
+  // - product.etsyUrl (current UI)
+  // - product.buyUrl / product.buy_url (DB/admin mapping)
+  const etsyUrl =
+    (product as any).etsyUrl ||
+    (product as any).buyUrl ||
+    (product as any).buy_url ||
+    '';
+
+  const imageSrc =
+    (product?.images && product.images[0]) ||
+    (product as any).imageUrl ||
+    (product as any).image ||
+    '/placeholders/placeholder.jpg';
+
+  const handleEtsyClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // This is the key: prevent the parent <Link> navigation.
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!etsyUrl) return;
+
+    window.open(etsyUrl, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 20 }}
@@ -25,7 +50,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           {/* Image Container */}
           <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
             <Image
-              src={product.images[0] || '/placeholders/placeholder.jpg'}
+              src={imageSrc}
               alt={product.name}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -50,11 +75,9 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 <h3 className="heading-card truncate group-hover:text-neutral-600 transition-colors">
                   {product.name}
                 </h3>
-                <p className="mt-1 text-sm text-neutral-500">
-                  {product.woodType}
-                </p>
+                <p className="mt-1 text-sm text-neutral-500">{(product as any).woodType || ''}</p>
               </div>
-              {product.price && (
+              {typeof product.price === 'number' && (
                 <span className="text-lg font-semibold text-neutral-900 whitespace-nowrap">
                   ${product.price.toLocaleString()}
                 </span>
@@ -70,17 +93,24 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 >
                   Sold Out
                 </button>
-              ) : (
+              ) : etsyUrl ? (
                 <a
-                  href={product.etsyUrl}
+                  href={etsyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={handleEtsyClick}
                   className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-full hover:bg-neutral-800 transition-colors"
                 >
                   Buy on Etsy
                   <ExternalLink size={14} />
                 </a>
+              ) : (
+                <button
+                  disabled
+                  className="w-full px-4 py-2.5 bg-neutral-100 text-neutral-400 text-sm font-medium rounded-full cursor-not-allowed"
+                >
+                  Link coming soon
+                </button>
               )}
             </div>
           </div>
