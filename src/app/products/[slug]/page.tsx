@@ -65,10 +65,16 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const itemName = itemRow?.name ?? '';
 
   // 3) Image URL
+  // ✅ Prefer image_url saved by your admin upload flow
+  // ✅ Fallback to storage path if you ever store image_path instead
+  const imageUrlFromDb = (product as any).image_url as string | null | undefined;
+
   const imagePath = (product as any).image_path as string | null | undefined;
-  const imageUrl = imagePath
+  const imageUrlFromStorage = imagePath
     ? supabase.storage.from(BUCKET).getPublicUrl(imagePath).data.publicUrl
     : '';
+
+  const finalImageUrl = imageUrlFromDb || imageUrlFromStorage || '';
 
   // 4) Fields
   const name = (product as any).name ?? 'Product';
@@ -97,9 +103,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
           {/* Image */}
           <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
             <div className="aspect-[4/3] bg-neutral-100">
-              {imageUrl ? (
+              {finalImageUrl ? (
                 <img
-                  src={imageUrl}
+                  src={finalImageUrl}
                   alt={name}
                   className="h-full w-full object-cover"
                   loading="lazy"
@@ -114,11 +120,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
           {/* Details */}
           <div>
-            <h1 className="text-3xl sm:text-4xl font-semibold text-neutral-900">
-              {name}
-            </h1>
+            <h1 className="text-3xl sm:text-4xl font-semibold text-neutral-900">{name}</h1>
 
-            {/* Keep the small pill tags up top (optional). If you want these gone too, tell me. */}
+            {/* Optional pill tags */}
             <div className="mt-3 flex flex-wrap gap-2">
               {itemName ? (
                 <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700">
@@ -150,12 +154,10 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
 
             {typeof price === 'number' ? (
-              <p className="mt-4 text-xl font-semibold text-neutral-900">
-                ${price.toFixed(2)}
-              </p>
+              <p className="mt-4 text-xl font-semibold text-neutral-900">${price.toFixed(2)}</p>
             ) : null}
 
-            {/* ✅ Keep ONLY description (what you edit in admin) */}
+            {/* Description (from admin page Description box) */}
             <div className="mt-8">
               <h2 className="text-lg font-semibold text-neutral-900">Description</h2>
               <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
@@ -163,7 +165,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </p>
             </div>
 
-            {/* Keep care instructions */}
+            {/* Care Instructions */}
             <div className="mt-8">
               <h2 className="text-lg font-semibold text-neutral-900">Care Instructions</h2>
               <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
