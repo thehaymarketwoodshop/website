@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Check, X, ImagePlus } from 'lucide-react';
 
 import {
   checkIsAdmin,
@@ -15,53 +15,56 @@ import {
   DbProductWithRelations,
   DbWoodType,
   DbItemType,
-  DbProduct,
   uploadProductImage,
 } from '@/lib/supabaseClient';
 
 import { cn } from '@/lib/utils';
 
-/**
- * ✅ Admin goals in this version:
- * - Keep Item Type + Wood Type so nothing breaks
- * - Use `dimensions` for the Size (inches) field shown on product click
- * - "Materials" on the product page should just be the existing `description`
- *   (so you type it in the Description box here)
- *
- * NOTE:
- * - Ensure Supabase has: products.dimensions (text)
- * - Ensure DbProduct includes: dimensions: string | null
- */
-
 type ProductFormData = {
   name: string;
-  description: string; // ✅ this will be used as “Materials/Description” on your product page
+
+  // your requested editable fields
+  description: string;
+  materials: string;
+  dimensions: string;
+  weight_text: string;
+  care: string;
+
   price: string; // USD string for input
   buy_url: string;
-  image_url: string; // upload or manual URL
 
-  // ✅ NEW: Size (inches) field
-  dimensions: string;
+  // images
+  image_url: string;     // cover image (single) - will be set from image_urls[0]
+  image_urls: string[];  // multiple images
 
-  // existing fields you already had
   size_label: string;
-  weight_lbs: string;
-  is_in_stock: boolean;
 
-  // keep both so nothing breaks
+  // keep existing numeric weight if you already use it elsewhere (optional)
+  weight_lbs: string;
+
+  is_in_stock: boolean;
   wood_type_id: string;
   item_type_id: string;
 };
 
 const emptyFormData: ProductFormData = {
   name: '',
+
   description: '',
+  materials: '',
+  dimensions: '',
+  weight_text: '',
+  care: '',
+
   price: '',
   buy_url: '',
+
   image_url: '',
-  dimensions: '', // ✅ NEW
+  image_urls: [],
+
   size_label: '',
   weight_lbs: '',
+
   is_in_stock: true,
   wood_type_id: '',
   item_type_id: '',
@@ -82,10 +85,10 @@ export default function AdminProductsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Image upload state
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  // ✅ Multi-image upload state
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -95,9 +98,7 @@ export default function AdminProductsPage() {
   async function checkAuth() {
     const admin = await checkIsAdmin();
     setIsAdmin(admin);
-    if (admin) {
-      await loadData();
-    }
+    if (admin) await loadData();
     setIsLoading(false);
   }
 
@@ -112,40 +113,53 @@ export default function AdminProductsPage() {
     setItemTypes(itemTypesData);
   }
 
+  function resetImageState() {
+    setImageFiles([]);
+    setImagePreviews([]);
+    setIsUploadingImages(false);
+  }
+
   function openCreateForm() {
     setFormData(emptyFormData);
     setEditingId(null);
     setIsFormOpen(true);
     setError('');
-
-    setImageFile(null);
-    setImagePreview(null);
-    setIsUploadingImage(false);
+    resetImageState();
   }
 
   function openEditForm(product: DbProductWithRelations) {
+    const existingImageUrls =
+      ((product as any).image_urls as string[] | null | undefined) ?? [];
+
+    const cover = (product as any).image_url || existingImageUrls[0] || '';
+
     setFormData({
       name: product.name,
-      description: product.description || '',
+
+      description: (product.description as any) || '',
+      materials: ((product as any).materials as string) || '',
+      dimensions: ((product as any).dimensions as string) || '',
+      weight_text: ((product as any).weight_text as string) || '',
+      care: ((product as any).care as string) || '',
+
       price: (product.price_cents / 100).toFixed(2),
-      buy_url: product.buy_url || '',
-      image_url: product.image_url || '',
-      size_label: product.size_label || '',
-      // ✅ NEW: dimensions (ensure your types include it; see note below)
-      dimensions: (product as any).dimensions || '',
+      buy_url: (product.buy_url as any) || '',
+
+      image_url: cover || '',
+      image_urls: existingImageUrls.length > 0 ? existingImageUrls : cover ? [cover] : [],
+
+      size_label: (product.size_label as any) || '',
       weight_lbs: product.weight_lbs?.toString() || '',
+
       is_in_stock: product.is_in_stock,
-      wood_type_id: product.wood_type_id || '',
-      item_type_id: product.item_type_id || '',
+      wood_type_id: (product.wood_type_id as any) || '',
+      item_type_id: (product.item_type_id as any) || '',
     });
 
     setEditingId(product.id);
     setIsFormOpen(true);
     setError('');
-
-    setImageFile(null);
-    setImagePreview(null);
-    setIsUploadingImage(false);
+    resetImageState();
   }
 
   function closeForm() {
@@ -153,27 +167,59 @@ export default function AdminProductsPage() {
     setEditingId(null);
     setFormData(emptyFormData);
     setError('');
-
-    setImageFile(null);
-    setImagePreview(null);
-    setIsUploadingImage(false);
+    resetImageState();
   }
 
-  function handlePickImage(file: File) {
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+  function handlePickImages(files: FileList) {
+    const arr = Array.from(files);
+    setImageFiles(arr);
+    setImagePreviews(arr.map((f) => URL.createObjectURL(f)));
   }
 
-  async function uploadIfNeeded(): Promise<string | null> {
-    if (!imageFile) return null;
+  async function uploadAllSelectedImages(): Promise<string[]> {
+    if (imageFiles.length === 0) return [];
 
-    setIsUploadingImage(true);
+    setIsUploadingImages(true);
     try {
-      const url = await uploadProductImage(imageFile);
-      return url;
+      const urls = await Promise.all(imageFiles.map((f) => uploadProductImage(f)));
+      return (urls || []).filter(Boolean) as string[];
     } finally {
-      setIsUploadingImage(false);
+      setIsUploadingImages(false);
     }
+  }
+
+  function removeSavedImage(index: number) {
+    const next = formData.image_urls.filter((_, i) => i !== index);
+    const nextCover = next[0] || '';
+    setFormData({
+      ...formData,
+      image_urls: next,
+      image_url: nextCover,
+    });
+  }
+
+  function setCoverImage(index: number) {
+    const urls = [...formData.image_urls];
+    const [picked] = urls.splice(index, 1);
+    const reordered = [picked, ...urls].filter(Boolean);
+    setFormData({
+      ...formData,
+      image_urls: reordered,
+      image_url: reordered[0] || '',
+    });
+  }
+
+  function addManualImageUrl(url: string) {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+
+    // Add to image_urls if not already present
+    const next = Array.from(new Set([...(formData.image_urls || []), trimmed]));
+    setFormData({
+      ...formData,
+      image_urls: next,
+      image_url: next[0] || '',
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -184,25 +230,40 @@ export default function AdminProductsPage() {
     try {
       const priceInCents = Math.round(parseFloat(formData.price || '0') * 100);
 
-      // If user selected a local image, upload and override image_url
-      let finalImageUrl: string | null = formData.image_url || null;
-      if (imageFile) {
-        const uploadedUrl = await uploadIfNeeded();
-        if (uploadedUrl) finalImageUrl = uploadedUrl;
-      }
+      // Upload selected images (if any)
+      const uploadedUrls = await uploadAllSelectedImages();
 
-      // ✅ IMPORTANT:
-      // Your DbProduct type MUST include: dimensions: string | null
-      // Otherwise TS will complain here.
-      const productData: Omit<DbProduct, 'id' | 'created_at' | 'updated_at'> = {
+      // Merge saved + uploaded
+      const merged = Array.from(
+        new Set([...(formData.image_urls || []), ...uploadedUrls].filter(Boolean))
+      );
+
+      // Ensure cover is first
+      const cover = formData.image_url?.trim() || merged[0] || '';
+      const normalized = cover
+        ? [cover, ...merged.filter((u) => u !== cover)]
+        : merged;
+
+      const productData = {
         name: formData.name,
+
         description: formData.description || null,
+        materials: formData.materials || null,
+        dimensions: formData.dimensions || null,
+        weight_text: formData.weight_text || null,
+        care: formData.care || null,
+
         price_cents: priceInCents,
         buy_url: formData.buy_url || null,
-        image_url: finalImageUrl,
+
+        // ✅ cover
+        image_url: normalized[0] || null,
+        // ✅ multiple (REQUIRED by your typing)
+        image_urls: normalized,
+
         size_label: formData.size_label || null,
-        dimensions: formData.dimensions || null, // ✅ NEW
         weight_lbs: formData.weight_lbs ? parseFloat(formData.weight_lbs) : null,
+
         is_in_stock: formData.is_in_stock,
         wood_type_id: formData.wood_type_id || null,
         item_type_id: formData.item_type_id || null,
@@ -243,9 +304,10 @@ export default function AdminProductsPage() {
     }
   }
 
-  const modalImageSrc = useMemo(() => {
-    return imagePreview || formData.image_url || '';
-  }, [imagePreview, formData.image_url]);
+  const coverPreviewSrc = useMemo(() => {
+    // prefer saved cover or first saved image
+    return formData.image_url || formData.image_urls[0] || '';
+  }, [formData.image_url, formData.image_urls]);
 
   if (isLoading) {
     return (
@@ -274,7 +336,10 @@ export default function AdminProductsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Link href="/admin" className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors">
+            <Link
+              href="/admin"
+              className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
+            >
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <h1 className="text-3xl font-semibold text-neutral-900">Products</h1>
@@ -293,12 +358,24 @@ export default function AdminProductsPage() {
           <table className="w-full">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Product</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Price</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Type</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Wood</th>
-                <th className="text-center px-6 py-4 text-sm font-semibold text-neutral-900">In Stock</th>
-                <th className="text-right px-6 py-4 text-sm font-semibold text-neutral-900">Actions</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Product
+                </th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Price
+                </th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Type
+                </th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Wood
+                </th>
+                <th className="text-center px-6 py-4 text-sm font-semibold text-neutral-900">
+                  In Stock
+                </th>
+                <th className="text-right px-6 py-4 text-sm font-semibold text-neutral-900">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -309,63 +386,68 @@ export default function AdminProductsPage() {
                   </td>
                 </tr>
               ) : (
-                products.map((product) => (
-                  <tr key={product.id} className="hover:bg-neutral-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {product.image_url && (
-                          <img
-                            src={product.image_url}
-                            alt=""
-                            className="w-10 h-10 rounded-lg object-cover bg-neutral-100"
-                          />
-                        )}
-                        <div>
-                          <p className="font-medium text-neutral-900">{product.name}</p>
-                          {product.size_label && <p className="text-sm text-neutral-500">{product.size_label}</p>}
+                products.map((product) => {
+                  const cover =
+                    (product as any).image_url ||
+                    ((product as any).image_urls?.[0] as string | undefined) ||
+                    '';
+
+                  return (
+                    <tr key={product.id} className="hover:bg-neutral-50">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {cover && (
+                            <img
+                              src={cover}
+                              alt=""
+                              className="w-10 h-10 rounded-lg object-cover bg-neutral-100"
+                            />
+                          )}
+                          <div>
+                            <p className="font-medium text-neutral-900">{product.name}</p>
+                            {product.size_label && (
+                              <p className="text-sm text-neutral-500">{product.size_label}</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-neutral-600">
-                      ${(product.price_cents / 100).toFixed(2)}
-                    </td>
-
-                    <td className="px-6 py-4 text-neutral-600">{product.item_types?.name || '—'}</td>
-                    <td className="px-6 py-4 text-neutral-600">{product.wood_types?.name || '—'}</td>
-
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => handleToggleStock(product)}
-                        className={cn(
-                          'w-8 h-8 rounded-full flex items-center justify-center transition-colors',
-                          product.is_in_stock
-                            ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                            : 'bg-red-100 text-red-600 hover:bg-red-200'
-                        )}
-                      >
-                        {product.is_in_stock ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                      </button>
-                    </td>
-
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      </td>
+                      <td className="px-6 py-4 text-neutral-600">
+                        ${(product.price_cents / 100).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 text-neutral-600">{product.item_types?.name || '—'}</td>
+                      <td className="px-6 py-4 text-neutral-600">{product.wood_types?.name || '—'}</td>
+                      <td className="px-6 py-4 text-center">
                         <button
-                          onClick={() => openEditForm(product)}
-                          className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
+                          onClick={() => handleToggleStock(product)}
+                          className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center transition-colors',
+                            product.is_in_stock
+                              ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                              : 'bg-red-100 text-red-600 hover:bg-red-200'
+                          )}
                         >
-                          <Pencil className="w-4 h-4" />
+                          {product.is_in_stock ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
                         </button>
-                        <button
-                          onClick={() => handleDelete(product.id)}
-                          className="p-2 text-neutral-500 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditForm(product)}
+                            className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(product.id)}
+                            className="p-2 text-neutral-500 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -405,17 +487,58 @@ export default function AdminProductsPage() {
                   />
                 </div>
 
-                {/* ✅ This is what you will show as "Description" (and you can label it “Materials” on the product page if you want) */}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Description (shows on product page)
-                  </label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Description</label>
                   <textarea
-                    rows={3}
+                    rows={4}
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900 resize-none"
-                    placeholder="Type what you want to show under Materials/Description..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Materials Used</label>
+                  <textarea
+                    rows={3}
+                    value={formData.materials}
+                    onChange={(e) => setFormData({ ...formData, materials: e.target.value })}
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900 resize-none"
+                    placeholder="Example: Walnut + Maple, food-safe oil finish..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Dimensions</label>
+                    <input
+                      type="text"
+                      value={formData.dimensions}
+                      onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
+                      className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                      placeholder='Example: 18" x 12" x 1.5"'
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Weight (text)</label>
+                    <input
+                      type="text"
+                      value={formData.weight_text}
+                      onChange={(e) => setFormData({ ...formData, weight_text: e.target.value })}
+                      className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                      placeholder="Example: ~3.5 lbs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Care Instructions</label>
+                  <textarea
+                    rows={3}
+                    value={formData.care}
+                    onChange={(e) => setFormData({ ...formData, care: e.target.value })}
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900 resize-none"
+                    placeholder="Example: Hand wash only. Re-oil monthly..."
                   />
                 </div>
 
@@ -432,8 +555,9 @@ export default function AdminProductsPage() {
                       placeholder="0.00"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Weight (lbs)</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Weight (lbs) (optional)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -447,7 +571,7 @@ export default function AdminProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Buy URL</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Buy URL (Etsy)</label>
                   <input
                     type="url"
                     value={formData.buy_url}
@@ -457,88 +581,132 @@ export default function AdminProductsPage() {
                   />
                 </div>
 
-                {/* Image upload + preview */}
+                {/* Images */}
                 <div className="space-y-3">
-                  <label className="block text-sm font-medium text-neutral-700">Product Image</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-neutral-700">Product Images</label>
+                    <span className="text-xs text-neutral-500">Cover image = first</span>
+                  </div>
 
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) {
-                        setImageFile(f);
-                        setImagePreview(URL.createObjectURL(f));
-                      }
+                      if (e.target.files) handlePickImages(e.target.files);
                     }}
                     className="block w-full text-sm"
                   />
 
-                  {modalImageSrc && (
-                    <div className="flex items-center gap-4">
-                      <img
-                        src={modalImageSrc}
-                        alt="Preview"
-                        className="w-24 h-24 rounded-xl object-cover border border-neutral-200 bg-neutral-50"
-                      />
-                      <div className="text-sm text-neutral-600">
-                        {isUploadingImage ? (
-                          <span className="inline-flex items-center gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" /> Uploading…
-                          </span>
-                        ) : imageFile ? (
-                          <span>Selected: {imageFile.name}</span>
-                        ) : formData.image_url ? (
-                          <span>Using saved image URL</span>
-                        ) : (
-                          <span>No image yet</span>
-                        )}
+                  {/* Selected previews */}
+                  {imagePreviews.length > 0 && (
+                    <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                      <div className="flex items-center gap-2 text-sm text-neutral-700 mb-3">
+                        <ImagePlus className="w-4 h-4" />
+                        Selected images will upload when you Save.
+                      </div>
+                      <div className="grid grid-cols-4 gap-3">
+                        {imagePreviews.map((src, i) => (
+                          <img
+                            key={src}
+                            src={src}
+                            alt=""
+                            className="h-20 w-full object-cover rounded-lg border border-neutral-200 bg-white"
+                          />
+                        ))}
+                      </div>
+                      {isUploadingImages && (
+                        <div className="mt-3 inline-flex items-center gap-2 text-sm text-neutral-600">
+                          <Loader2 className="w-4 h-4 animate-spin" /> Uploading…
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Saved images */}
+                  {formData.image_urls.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-neutral-700">Saved Images</p>
+                      <div className="grid grid-cols-4 gap-3">
+                        {formData.image_urls.map((url, idx) => (
+                          <div key={`${url}-${idx}`} className="relative">
+                            <img
+                              src={url}
+                              alt=""
+                              className="h-20 w-full object-cover rounded-lg border border-neutral-200 bg-neutral-50"
+                            />
+                            {idx === 0 && (
+                              <span className="absolute bottom-1 left-1 text-[10px] px-2 py-1 rounded bg-black/70 text-white">
+                                Cover
+                              </span>
+                            )}
+
+                            <div className="absolute top-1 right-1 flex gap-1">
+                              {idx !== 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setCoverImage(idx)}
+                                  className="text-[10px] px-2 py-1 rounded bg-black/70 text-white hover:bg-black"
+                                  title="Set as cover"
+                                >
+                                  Cover
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeSavedImage(idx)}
+                                className="text-[10px] px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700"
+                                title="Remove"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
 
+                  {/* Manual URL add */}
                   <div>
                     <label className="block text-xs font-medium text-neutral-500 mb-2">
-                      Or paste an Image URL (optional)
+                      Add image by URL (optional)
                     </label>
-                    <input
-                      type="url"
-                      value={formData.image_url}
-                      onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                      className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                      placeholder="https://..."
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={formData.image_url}
+                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                        className="flex-1 px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                        placeholder="https://..."
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addManualImageUrl(formData.image_url)}
+                        className="px-4 py-3 rounded-xl bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    {coverPreviewSrc ? (
+                      <p className="mt-2 text-xs text-neutral-500">
+                        Current cover: {coverPreviewSrc}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
-                {/* ✅ NEW: Size (inches) field that should map to your product page "Size (inches)" */}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Size (inches)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.dimensions}
-                    onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
-                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                    placeholder='e.g., 15 × 10 × 1.5'
-                  />
-                  <p className="mt-2 text-xs text-neutral-500">Use L × W × T for consistency.</p>
-                </div>
-
-                {/* Keep your existing size_label if you still use it anywhere */}
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Size Label (optional)</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Size Label</label>
                   <input
                     type="text"
                     value={formData.size_label}
                     onChange={(e) => setFormData({ ...formData, size_label: e.target.value })}
                     className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                    placeholder="e.g., Small, Medium, Large"
+                    placeholder='Example: 18" x 12"'
                   />
                 </div>
 
-                {/* Keep both selects so nothing breaks */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-2">Wood Type</label>
@@ -590,13 +758,13 @@ export default function AdminProductsPage() {
                     type="button"
                     onClick={closeForm}
                     className="flex-1 px-6 py-3 bg-neutral-100 text-neutral-900 font-medium rounded-full hover:bg-neutral-200 transition-colors"
-                    disabled={isSaving || isUploadingImage}
+                    disabled={isSaving || isUploadingImages}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={isSaving || isUploadingImage}
+                    disabled={isSaving || isUploadingImages}
                     className="flex-1 px-6 py-3 bg-neutral-900 text-white font-medium rounded-full hover:bg-neutral-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                   >
                     {isSaving ? (
@@ -612,8 +780,10 @@ export default function AdminProductsPage() {
                   </button>
                 </div>
 
-                {imageFile && (
-                  <p className="text-xs text-neutral-500">Note: The selected image will upload when you click Save.</p>
+                {imageFiles.length > 0 && (
+                  <p className="text-xs text-neutral-500">
+                    Note: Selected images will upload when you click Save.
+                  </p>
                 )}
               </form>
             </div>

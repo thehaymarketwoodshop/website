@@ -48,15 +48,19 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   const name = (product as any).name ?? 'Product';
   const description = (product as any).description ?? '';
+
+  // ✅ NEW fields (editable in admin)
+  const materials = (product as any).materials ?? '';
+  const weightText = (product as any).weight_text ?? '';
+
   const care = (product as any).care ?? '';
 
   const priceCents = (product as any).price_cents as number | null | undefined;
   const price = typeof priceCents === 'number' ? priceCents / 100 : null;
 
-  const isInStock = Boolean((product as any).is_in_stock ?? true);
   const buyUrl = ((product as any).buy_url ?? '') as string;
 
-  // ✅ image_urls first, fallback to image_url
+  // Image (multi first, fallback to single)
   const imageUrls = ((product as any).image_urls ?? []) as string[];
   const imageUrlSingle = ((product as any).image_url ?? '') as string;
   const finalImageUrl = (imageUrls[0] || imageUrlSingle || '') as string;
@@ -93,7 +97,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <div>
             <h1 className="text-3xl sm:text-4xl font-semibold text-neutral-900">{name}</h1>
 
-            {/* ✅ Tags REMOVED (no pills under the title) */}
+            {/* ✅ tags/pills removed */}
 
             {typeof price === 'number' ? (
               <p className="mt-4 text-xl font-semibold text-neutral-900">${price.toFixed(2)}</p>
@@ -112,26 +116,35 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </div>
             ) : null}
 
-            <div className="mt-8">
-              <h2 className="text-lg font-semibold text-neutral-900">Description</h2>
-              <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
-                {description || 'Description coming soon.'}
-              </p>
-            </div>
+            {/* ✅ Ordered exactly how you want */}
+            <div className="mt-8 space-y-8">
+              <div>
+                <h2 className="text-lg font-semibold text-neutral-900">Description</h2>
+                <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
+                  {description || 'Description coming soon.'}
+                </p>
+              </div>
 
-            <div className="mt-8">
-              <h2 className="text-lg font-semibold text-neutral-900">Care Instructions</h2>
-              <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
-                {care || 'Care instructions coming soon.'}
-              </p>
-            </div>
+              <div>
+                <h2 className="text-lg font-semibold text-neutral-900">Materials Used</h2>
+                <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
+                  {materials || 'Materials coming soon.'}
+                </p>
+              </div>
 
-            <div className="mt-8">
-              {isInStock ? (
-                <span className="text-sm text-emerald-700">In stock</span>
-              ) : (
-                <span className="text-sm text-red-700">Sold out</span>
-              )}
+              <div>
+                <h2 className="text-lg font-semibold text-neutral-900">Weight</h2>
+                <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
+                  {weightText || 'Weight coming soon.'}
+                </p>
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-neutral-900">Care Instructions</h2>
+                <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
+                  {care || 'Care instructions coming soon.'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
