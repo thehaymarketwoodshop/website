@@ -1,8 +1,18 @@
-'use client';
+// app/admin/products/page.tsx
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Check, X, ImagePlus } from 'lucide-react';
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+  Check,
+  X,
+  ImagePlus,
+} from "lucide-react";
 
 import {
   checkIsAdmin,
@@ -16,17 +26,20 @@ import {
   DbWoodType,
   DbItemType,
   uploadProductImage,
-} from '@/lib/supabaseClient';
+} from "@/lib/supabaseClient";
 
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 
 type ProductFormData = {
   name: string;
 
-  // your requested editable fields
+  // Editable fields
   description: string;
   materials: string;
+
+  // ✅ Dimensions stays FREE TEXT
   dimensions: string;
+
   weight_text: string;
   care: string;
 
@@ -34,12 +47,12 @@ type ProductFormData = {
   buy_url: string;
 
   // images
-  image_url: string;     // cover image (single) - will be set from image_urls[0]
-  image_urls: string[];  // multiple images
+  image_url: string; // cover image (single) - set from image_urls[0]
+  image_urls: string[]; // multiple images
 
   size_label: string;
 
-  // keep existing numeric weight if you already use it elsewhere (optional)
+  // optional numeric weight if you use it elsewhere
   weight_lbs: string;
 
   is_in_stock: boolean;
@@ -48,26 +61,26 @@ type ProductFormData = {
 };
 
 const emptyFormData: ProductFormData = {
-  name: '',
+  name: "",
 
-  description: '',
-  materials: '',
-  dimensions: '',
-  weight_text: '',
-  care: '',
+  description: "",
+  materials: "",
+  dimensions: "",
+  weight_text: "",
+  care: "",
 
-  price: '',
-  buy_url: '',
+  price: "",
+  buy_url: "",
 
-  image_url: '',
+  image_url: "",
   image_urls: [],
 
-  size_label: '',
-  weight_lbs: '',
+  size_label: "",
+  weight_lbs: "",
 
   is_in_stock: true,
-  wood_type_id: '',
-  item_type_id: '',
+  wood_type_id: "",
+  item_type_id: "",
 };
 
 export default function AdminProductsPage() {
@@ -83,9 +96,9 @@ export default function AdminProductsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ProductFormData>(emptyFormData);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
-  // ✅ Multi-image upload state
+  // Multi-image upload state
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
@@ -123,7 +136,7 @@ export default function AdminProductsPage() {
     setFormData(emptyFormData);
     setEditingId(null);
     setIsFormOpen(true);
-    setError('');
+    setError("");
     resetImageState();
   }
 
@@ -131,34 +144,35 @@ export default function AdminProductsPage() {
     const existingImageUrls =
       ((product as any).image_urls as string[] | null | undefined) ?? [];
 
-    const cover = (product as any).image_url || existingImageUrls[0] || '';
+    const cover = (product as any).image_url || existingImageUrls[0] || "";
 
     setFormData({
       name: product.name,
 
-      description: (product.description as any) || '',
-      materials: ((product as any).materials as string) || '',
-      dimensions: ((product as any).dimensions as string) || '',
-      weight_text: ((product as any).weight_text as string) || '',
-      care: ((product as any).care as string) || '',
+      description: (product.description as any) || "",
+      materials: ((product as any).materials as string) || "",
+      dimensions: ((product as any).dimensions as string) || "",
+      weight_text: ((product as any).weight_text as string) || "",
+      care: ((product as any).care as string) || "",
 
       price: (product.price_cents / 100).toFixed(2),
-      buy_url: (product.buy_url as any) || '',
+      buy_url: (product.buy_url as any) || "",
 
-      image_url: cover || '',
-      image_urls: existingImageUrls.length > 0 ? existingImageUrls : cover ? [cover] : [],
+      image_url: cover || "",
+      image_urls:
+        existingImageUrls.length > 0 ? existingImageUrls : cover ? [cover] : [],
 
-      size_label: (product.size_label as any) || '',
-      weight_lbs: product.weight_lbs?.toString() || '',
+      size_label: (product.size_label as any) || "",
+      weight_lbs: product.weight_lbs?.toString() || "",
 
       is_in_stock: product.is_in_stock,
-      wood_type_id: (product.wood_type_id as any) || '',
-      item_type_id: (product.item_type_id as any) || '',
+      wood_type_id: (product.wood_type_id as any) || "",
+      item_type_id: (product.item_type_id as any) || "",
     });
 
     setEditingId(product.id);
     setIsFormOpen(true);
-    setError('');
+    setError("");
     resetImageState();
   }
 
@@ -166,7 +180,7 @@ export default function AdminProductsPage() {
     setIsFormOpen(false);
     setEditingId(null);
     setFormData(emptyFormData);
-    setError('');
+    setError("");
     resetImageState();
   }
 
@@ -181,7 +195,9 @@ export default function AdminProductsPage() {
 
     setIsUploadingImages(true);
     try {
-      const urls = await Promise.all(imageFiles.map((f) => uploadProductImage(f)));
+      const urls = await Promise.all(
+        imageFiles.map((f) => uploadProductImage(f))
+      );
       return (urls || []).filter(Boolean) as string[];
     } finally {
       setIsUploadingImages(false);
@@ -190,7 +206,7 @@ export default function AdminProductsPage() {
 
   function removeSavedImage(index: number) {
     const next = formData.image_urls.filter((_, i) => i !== index);
-    const nextCover = next[0] || '';
+    const nextCover = next[0] || "";
     setFormData({
       ...formData,
       image_urls: next,
@@ -205,7 +221,7 @@ export default function AdminProductsPage() {
     setFormData({
       ...formData,
       image_urls: reordered,
-      image_url: reordered[0] || '',
+      image_url: reordered[0] || "",
     });
   }
 
@@ -213,22 +229,21 @@ export default function AdminProductsPage() {
     const trimmed = url.trim();
     if (!trimmed) return;
 
-    // Add to image_urls if not already present
     const next = Array.from(new Set([...(formData.image_urls || []), trimmed]));
     setFormData({
       ...formData,
       image_urls: next,
-      image_url: next[0] || '',
+      image_url: next[0] || "",
     });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsSaving(true);
 
     try {
-      const priceInCents = Math.round(parseFloat(formData.price || '0') * 100);
+      const priceInCents = Math.round(parseFloat(formData.price || "0") * 100);
 
       // Upload selected images (if any)
       const uploadedUrls = await uploadAllSelectedImages();
@@ -239,7 +254,7 @@ export default function AdminProductsPage() {
       );
 
       // Ensure cover is first
-      const cover = formData.image_url?.trim() || merged[0] || '';
+      const cover = formData.image_url?.trim() || merged[0] || "";
       const normalized = cover
         ? [cover, ...merged.filter((u) => u !== cover)]
         : merged;
@@ -249,20 +264,25 @@ export default function AdminProductsPage() {
 
         description: formData.description || null,
         materials: formData.materials || null,
+
+        // ✅ free text dimensions field saved to DB
         dimensions: formData.dimensions || null,
+
         weight_text: formData.weight_text || null,
         care: formData.care || null,
 
         price_cents: priceInCents,
         buy_url: formData.buy_url || null,
 
-        // ✅ cover
+        // cover
         image_url: normalized[0] || null,
-        // ✅ multiple (REQUIRED by your typing)
+        // multiple
         image_urls: normalized,
 
         size_label: formData.size_label || null,
-        weight_lbs: formData.weight_lbs ? parseFloat(formData.weight_lbs) : null,
+        weight_lbs: formData.weight_lbs
+          ? parseFloat(formData.weight_lbs)
+          : null,
 
         is_in_stock: formData.is_in_stock,
         wood_type_id: formData.wood_type_id || null,
@@ -278,20 +298,20 @@ export default function AdminProductsPage() {
       await loadData();
       closeForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    if (!confirm("Are you sure you want to delete this product?")) return;
 
     try {
       await deleteProduct(id);
       await loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete product');
+      alert(err instanceof Error ? err.message : "Failed to delete product");
     }
   }
 
@@ -300,13 +320,12 @@ export default function AdminProductsPage() {
       await updateProduct(product.id, { is_in_stock: !product.is_in_stock });
       await loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update stock status');
+      alert(err instanceof Error ? err.message : "Failed to update stock status");
     }
   }
 
   const coverPreviewSrc = useMemo(() => {
-    // prefer saved cover or first saved image
-    return formData.image_url || formData.image_urls[0] || '';
+    return formData.image_url || formData.image_urls[0] || "";
   }, [formData.image_url, formData.image_urls]);
 
   if (isLoading) {
@@ -321,7 +340,9 @@ export default function AdminProductsPage() {
     return (
       <div className="min-h-screen pt-32 sm:pt-40 pb-20">
         <div className="max-w-md mx-auto px-6 text-center">
-          <h1 className="text-3xl font-semibold text-neutral-900 mb-4">Access Denied</h1>
+          <h1 className="text-3xl font-semibold text-neutral-900 mb-4">
+            Access Denied
+          </h1>
           <Link href="/admin" className="text-neutral-600 hover:text-neutral-900">
             Go to login →
           </Link>
@@ -378,6 +399,7 @@ export default function AdminProductsPage() {
                 </th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-neutral-100">
               {products.length === 0 ? (
                 <tr>
@@ -390,7 +412,7 @@ export default function AdminProductsPage() {
                   const cover =
                     (product as any).image_url ||
                     ((product as any).image_urls?.[0] as string | undefined) ||
-                    '';
+                    "";
 
                   return (
                     <tr key={product.id} className="hover:bg-neutral-50">
@@ -401,6 +423,7 @@ export default function AdminProductsPage() {
                               src={cover}
                               alt=""
                               className="w-10 h-10 rounded-lg object-cover bg-neutral-100"
+                              loading="lazy"
                             />
                           )}
                           <div>
@@ -411,24 +434,35 @@ export default function AdminProductsPage() {
                           </div>
                         </div>
                       </td>
+
                       <td className="px-6 py-4 text-neutral-600">
                         ${(product.price_cents / 100).toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 text-neutral-600">{product.item_types?.name || '—'}</td>
-                      <td className="px-6 py-4 text-neutral-600">{product.wood_types?.name || '—'}</td>
+                      <td className="px-6 py-4 text-neutral-600">
+                        {product.item_types?.name || "—"}
+                      </td>
+                      <td className="px-6 py-4 text-neutral-600">
+                        {product.wood_types?.name || "—"}
+                      </td>
+
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => handleToggleStock(product)}
                           className={cn(
-                            'w-8 h-8 rounded-full flex items-center justify-center transition-colors',
+                            "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
                             product.is_in_stock
-                              ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                              : 'bg-red-100 text-red-600 hover:bg-red-200'
+                              ? "bg-green-100 text-green-600 hover:bg-green-200"
+                              : "bg-red-100 text-red-600 hover:bg-red-200"
                           )}
                         >
-                          {product.is_in_stock ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                          {product.is_in_stock ? (
+                            <Check className="w-4 h-4" />
+                          ) : (
+                            <X className="w-4 h-4" />
+                          )}
                         </button>
                       </td>
+
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -456,13 +490,19 @@ export default function AdminProductsPage() {
         {/* Form Modal */}
         {isFormOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={closeForm} />
+            <div
+              className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+              onClick={closeForm}
+            />
             <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-neutral-100 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-neutral-900">
-                  {editingId ? 'Edit Product' : 'Add Product'}
+                  {editingId ? "Edit Product" : "Add Product"}
                 </h2>
-                <button onClick={closeForm} className="p-2 text-neutral-500 hover:text-neutral-900">
+                <button
+                  onClick={closeForm}
+                  className="p-2 text-neutral-500 hover:text-neutral-900"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -488,7 +528,9 @@ export default function AdminProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Description</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Description
+                  </label>
                   <textarea
                     rows={4}
                     value={formData.description}
@@ -498,7 +540,9 @@ export default function AdminProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Materials Used</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Materials Used
+                  </label>
                   <textarea
                     rows={3}
                     value={formData.materials}
@@ -508,9 +552,12 @@ export default function AdminProductsPage() {
                   />
                 </div>
 
+                {/* ✅ Dimensions is FREE TEXT input */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Dimensions</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Dimensions
+                    </label>
                     <input
                       type="text"
                       value={formData.dimensions}
@@ -520,7 +567,9 @@ export default function AdminProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Weight (text)</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Weight (text)
+                    </label>
                     <input
                       type="text"
                       value={formData.weight_text}
@@ -532,7 +581,9 @@ export default function AdminProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Care Instructions</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Care Instructions
+                  </label>
                   <textarea
                     rows={3}
                     value={formData.care}
@@ -544,7 +595,9 @@ export default function AdminProductsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Price (USD)</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Price (USD)
+                    </label>
                     <input
                       type="number"
                       step="0.01"
@@ -557,7 +610,9 @@ export default function AdminProductsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Weight (lbs) (optional)</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Weight (lbs) (optional)
+                    </label>
                     <input
                       type="number"
                       step="0.1"
@@ -571,7 +626,9 @@ export default function AdminProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Buy URL (Etsy)</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Buy URL (Etsy)
+                  </label>
                   <input
                     type="url"
                     value={formData.buy_url}
@@ -584,7 +641,9 @@ export default function AdminProductsPage() {
                 {/* Images */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-neutral-700">Product Images</label>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      Product Images
+                    </label>
                     <span className="text-xs text-neutral-500">Cover image = first</span>
                   </div>
 
@@ -606,12 +665,13 @@ export default function AdminProductsPage() {
                         Selected images will upload when you Save.
                       </div>
                       <div className="grid grid-cols-4 gap-3">
-                        {imagePreviews.map((src, i) => (
+                        {imagePreviews.map((src) => (
                           <img
                             key={src}
                             src={src}
                             alt=""
                             className="h-20 w-full object-cover rounded-lg border border-neutral-200 bg-white"
+                            loading="lazy"
                           />
                         ))}
                       </div>
@@ -634,6 +694,7 @@ export default function AdminProductsPage() {
                               src={url}
                               alt=""
                               className="h-20 w-full object-cover rounded-lg border border-neutral-200 bg-neutral-50"
+                              loading="lazy"
                             />
                             {idx === 0 && (
                               <span className="absolute bottom-1 left-1 text-[10px] px-2 py-1 rounded bg-black/70 text-white">
@@ -697,7 +758,9 @@ export default function AdminProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Size Label</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Size Label
+                  </label>
                   <input
                     type="text"
                     value={formData.size_label}
@@ -709,7 +772,9 @@ export default function AdminProductsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Wood Type</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Wood Type
+                    </label>
                     <select
                       value={formData.wood_type_id}
                       onChange={(e) => setFormData({ ...formData, wood_type_id: e.target.value })}
@@ -725,7 +790,9 @@ export default function AdminProductsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Item Type</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Item Type
+                    </label>
                     <select
                       value={formData.item_type_id}
                       onChange={(e) => setFormData({ ...formData, item_type_id: e.target.value })}
@@ -773,9 +840,9 @@ export default function AdminProductsPage() {
                         Saving...
                       </>
                     ) : editingId ? (
-                      'Update Product'
+                      "Update Product"
                     ) : (
-                      'Create Product'
+                      "Create Product"
                     )}
                   </button>
                 </div>
