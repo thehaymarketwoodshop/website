@@ -21,16 +21,34 @@ import {
 
 import { cn } from '@/lib/utils';
 
+/**
+ * ✅ Admin goals in this version:
+ * - Keep Item Type + Wood Type so nothing breaks
+ * - Use `dimensions` for the Size (inches) field shown on product click
+ * - "Materials" on the product page should just be the existing `description`
+ *   (so you type it in the Description box here)
+ *
+ * NOTE:
+ * - Ensure Supabase has: products.dimensions (text)
+ * - Ensure DbProduct includes: dimensions: string | null
+ */
+
 type ProductFormData = {
   name: string;
-  description: string;
+  description: string; // ✅ this will be used as “Materials/Description” on your product page
   price: string; // USD string for input
   buy_url: string;
-  image_url: string; // will be set from upload or manual URL
+  image_url: string; // upload or manual URL
+
+  // ✅ NEW: Size (inches) field
+  dimensions: string;
+
+  // existing fields you already had
   size_label: string;
-  dimensions: string; // ✅ NEW
   weight_lbs: string;
   is_in_stock: boolean;
+
+  // keep both so nothing breaks
   wood_type_id: string;
   item_type_id: string;
 };
@@ -39,10 +57,10 @@ const emptyFormData: ProductFormData = {
   name: '',
   description: '',
   price: '',
-  buy_url: '', // ✅ you mentioned this line specifically — it stays here
+  buy_url: '',
   image_url: '',
-  size_label: '',
   dimensions: '', // ✅ NEW
+  size_label: '',
   weight_lbs: '',
   is_in_stock: true,
   wood_type_id: '',
@@ -64,7 +82,7 @@ export default function AdminProductsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // ✅ Image upload state
+  // Image upload state
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -100,7 +118,6 @@ export default function AdminProductsPage() {
     setIsFormOpen(true);
     setError('');
 
-    // reset image state
     setImageFile(null);
     setImagePreview(null);
     setIsUploadingImage(false);
@@ -114,8 +131,7 @@ export default function AdminProductsPage() {
       buy_url: product.buy_url || '',
       image_url: product.image_url || '',
       size_label: product.size_label || '',
-      // ✅ NEW: dimensions (assumes your DbProductWithRelations includes `dimensions`)
-      // If TypeScript complains, add `dimensions: string | null` to DbProduct/DbProductWithRelations in supabaseClient.ts
+      // ✅ NEW: dimensions (ensure your types include it; see note below)
       dimensions: (product as any).dimensions || '',
       weight_lbs: product.weight_lbs?.toString() || '',
       is_in_stock: product.is_in_stock,
@@ -127,7 +143,6 @@ export default function AdminProductsPage() {
     setIsFormOpen(true);
     setError('');
 
-    // reset image state (keep existing image_url as preview if no new file)
     setImageFile(null);
     setImagePreview(null);
     setIsUploadingImage(false);
@@ -169,13 +184,16 @@ export default function AdminProductsPage() {
     try {
       const priceInCents = Math.round(parseFloat(formData.price || '0') * 100);
 
-      // ✅ If user selected a local image, upload and override image_url
+      // If user selected a local image, upload and override image_url
       let finalImageUrl: string | null = formData.image_url || null;
       if (imageFile) {
         const uploadedUrl = await uploadIfNeeded();
         if (uploadedUrl) finalImageUrl = uploadedUrl;
       }
 
+      // ✅ IMPORTANT:
+      // Your DbProduct type MUST include: dimensions: string | null
+      // Otherwise TS will complain here.
       const productData: Omit<DbProduct, 'id' | 'created_at' | 'updated_at'> = {
         name: formData.name,
         description: formData.description || null,
@@ -183,8 +201,7 @@ export default function AdminProductsPage() {
         buy_url: formData.buy_url || null,
         image_url: finalImageUrl,
         size_label: formData.size_label || null,
-        // ✅ NEW: dimensions
-        dimensions: formData.dimensions || null,
+        dimensions: formData.dimensions || null, // ✅ NEW
         weight_lbs: formData.weight_lbs ? parseFloat(formData.weight_lbs) : null,
         is_in_stock: formData.is_in_stock,
         wood_type_id: formData.wood_type_id || null,
@@ -227,7 +244,6 @@ export default function AdminProductsPage() {
   }
 
   const modalImageSrc = useMemo(() => {
-    // Show selected file preview first, otherwise existing image_url
     return imagePreview || formData.image_url || '';
   }, [imagePreview, formData.image_url]);
 
@@ -258,10 +274,7 @@ export default function AdminProductsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Link
-              href="/admin"
-              className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
-            >
+            <Link href="/admin" className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <h1 className="text-3xl font-semibold text-neutral-900">Products</h1>
@@ -280,24 +293,12 @@ export default function AdminProductsPage() {
           <table className="w-full">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
-                  Product
-                </th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
-                  Price
-                </th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
-                  Type
-                </th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">
-                  Wood
-                </th>
-                <th className="text-center px-6 py-4 text-sm font-semibold text-neutral-900">
-                  In Stock
-                </th>
-                <th className="text-right px-6 py-4 text-sm font-semibold text-neutral-900">
-                  Actions
-                </th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Product</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Price</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Type</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-neutral-900">Wood</th>
+                <th className="text-center px-6 py-4 text-sm font-semibold text-neutral-900">In Stock</th>
+                <th className="text-right px-6 py-4 text-sm font-semibold text-neutral-900">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -321,18 +322,7 @@ export default function AdminProductsPage() {
                         )}
                         <div>
                           <p className="font-medium text-neutral-900">{product.name}</p>
-
-                          {/* Existing size_label line */}
-                          {product.size_label && (
-                            <p className="text-sm text-neutral-500">{product.size_label}</p>
-                          )}
-
-                          {/* ✅ Optional: show dimensions in list view too (you can delete this block if you ONLY want it on click) */}
-                          {(product as any).dimensions && (
-                            <p className="text-xs text-neutral-400">
-                              {(product as any).dimensions}
-                            </p>
-                          )}
+                          {product.size_label && <p className="text-sm text-neutral-500">{product.size_label}</p>}
                         </div>
                       </div>
                     </td>
@@ -354,11 +344,7 @@ export default function AdminProductsPage() {
                             : 'bg-red-100 text-red-600 hover:bg-red-200'
                         )}
                       >
-                        {product.is_in_stock ? (
-                          <Check className="w-4 h-4" />
-                        ) : (
-                          <X className="w-4 h-4" />
-                        )}
+                        {product.is_in_stock ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
                       </button>
                     </td>
 
@@ -419,21 +405,23 @@ export default function AdminProductsPage() {
                   />
                 </div>
 
+                {/* ✅ This is what you will show as "Description" (and you can label it “Materials” on the product page if you want) */}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Description</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Description (shows on product page)
+                  </label>
                   <textarea
                     rows={3}
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900 resize-none"
+                    placeholder="Type what you want to show under Materials/Description..."
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Price (USD)
-                    </label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Price (USD)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -445,9 +433,7 @@ export default function AdminProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Weight (lbs)
-                    </label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Weight (lbs)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -471,7 +457,7 @@ export default function AdminProductsPage() {
                   />
                 </div>
 
-                {/* ✅ Local upload + preview */}
+                {/* Image upload + preview */}
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-neutral-700">Product Image</label>
 
@@ -480,7 +466,10 @@ export default function AdminProductsPage() {
                     accept="image/*"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) handlePickImage(f);
+                      if (f) {
+                        setImageFile(f);
+                        setImagePreview(URL.createObjectURL(f));
+                      }
                     }}
                     className="block w-full text-sm"
                   />
@@ -508,7 +497,6 @@ export default function AdminProductsPage() {
                     </div>
                   )}
 
-                  {/* Optional manual URL (still allowed) */}
                   <div>
                     <label className="block text-xs font-medium text-neutral-500 mb-2">
                       Or paste an Image URL (optional)
@@ -523,8 +511,24 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
+                {/* ✅ NEW: Size (inches) field that should map to your product page "Size (inches)" */}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Size Label</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Size (inches)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.dimensions}
+                    onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    placeholder='e.g., 15 × 10 × 1.5'
+                  />
+                  <p className="mt-2 text-xs text-neutral-500">Use L × W × T for consistency.</p>
+                </div>
+
+                {/* Keep your existing size_label if you still use it anywhere */}
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Size Label (optional)</label>
                   <input
                     type="text"
                     value={formData.size_label}
@@ -534,19 +538,7 @@ export default function AdminProductsPage() {
                   />
                 </div>
 
-                {/* ✅ NEW: Dimensions input */}
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Dimensions</label>
-                  <input
-                    type="text"
-                    value={formData.dimensions}
-                    onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
-                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                    placeholder='e.g., 18" × 12" × 1.5"'
-                  />
-                  <p className="mt-2 text-xs text-neutral-500">Tip: use L × W × T so it stays consistent.</p>
-                </div>
-
+                {/* Keep both selects so nothing breaks */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-2">Wood Type</label>
@@ -563,6 +555,7 @@ export default function AdminProductsPage() {
                       ))}
                     </select>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-2">Item Type</label>
                     <select
@@ -620,9 +613,7 @@ export default function AdminProductsPage() {
                 </div>
 
                 {imageFile && (
-                  <p className="text-xs text-neutral-500">
-                    Note: The selected image will upload when you click Save.
-                  </p>
+                  <p className="text-xs text-neutral-500">Note: The selected image will upload when you click Save.</p>
                 )}
               </form>
             </div>
