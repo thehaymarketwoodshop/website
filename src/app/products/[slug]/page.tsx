@@ -83,8 +83,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   const description = (product as any).description ?? '';
   const care = (product as any).care ?? '';
-  const finish = (product as any).finish ?? '';
-  const materials = (product as any).materials ?? '';
 
   return (
     <div className="min-h-screen pt-28 sm:pt-36 pb-16">
@@ -120,6 +118,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               {name}
             </h1>
 
+            {/* Keep the small pill tags up top (optional). If you want these gone too, tell me. */}
             <div className="mt-3 flex flex-wrap gap-2">
               {itemName ? (
                 <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700">
@@ -156,6 +155,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </p>
             ) : null}
 
+            {/* ✅ Keep ONLY description (what you edit in admin) */}
             <div className="mt-8">
               <h2 className="text-lg font-semibold text-neutral-900">Description</h2>
               <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
@@ -163,33 +163,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </p>
             </div>
 
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                <p className="text-xs text-neutral-500">Item Type</p>
-                <p className="mt-1 text-sm font-medium text-neutral-900">{itemName || '—'}</p>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                <p className="text-xs text-neutral-500">Wood Type</p>
-                <p className="mt-1 text-sm font-medium text-neutral-900">{woodName || '—'}</p>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                <p className="text-xs text-neutral-500">Size (inches)</p>
-                <p className="mt-1 text-sm font-medium text-neutral-900">{sizeIn || '—'}</p>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                <p className="text-xs text-neutral-500">Finish</p>
-                <p className="mt-1 text-sm font-medium text-neutral-900">{finish || '—'}</p>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:col-span-2">
-                <p className="text-xs text-neutral-500">Materials</p>
-                <p className="mt-1 text-sm font-medium text-neutral-900">{materials || '—'}</p>
-              </div>
-            </div>
-
+            {/* Keep care instructions */}
             <div className="mt-8">
               <h2 className="text-lg font-semibold text-neutral-900">Care Instructions</h2>
               <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
