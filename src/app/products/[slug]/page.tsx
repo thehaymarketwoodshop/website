@@ -5,7 +5,12 @@ export const dynamic = 'force-dynamic';
 
 type PageProps = { params: { slug: string } };
 
-const BUCKET = 'products'; // change if different
+// If your storage bucket is NOT named "products", change it here:
+const BUCKET = 'products';
+
+function isHttpUrl(v: string) {
+  return v.startsWith('http://') || v.startsWith('https://');
+}
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const id = params.slug;
@@ -49,10 +54,34 @@ export default async function ProductDetailPage({ params }: PageProps) {
     );
   }
 
-  // 2) Resolve wood/item names (works even without FK constraints)
-  const woodId = (product as any).wood_type ?? (product as any).woodType ?? null;
-  const itemId = (product as any).item_type ?? (product as any).itemType ?? null;
+  // ---- Read the fields your ADMIN PAGE actually saves ----
+  const name = (product as any).name ?? 'Product';
+  const description = (product as any).description ?? '';
+  const care = (product as any).care ?? '';
 
+  // ✅ price from admin is price_cents
+  const priceCents = (product as any).price_cents as number | null | undefined;
+  const price = typeof priceCents === 'number' ? priceCents / 100 : null;
+
+  // ✅ stock from admin is is_in_stock
+  const isInStock = Boolean((product as any).is_in_stock ?? true);
+
+  // ✅ buy link from admin is buy_url
+  const buyUrl = ((product as any).buy_url ?? '') as string;
+
+  // ✅ size stored as dimensions OR size_label, etc.
+  const sizeIn =
+    (product as any).dimensions ??
+    (product as any).size_in ??
+    (product as any).size ??
+    (product as any).size_label ??
+    '';
+
+  // ✅ wood/item ids from admin are *_id
+  const woodId = (product as any).wood_type_id ?? null;
+  const itemId = (product as any).item_type_id ?? null;
+
+  // 2) Resolve wood/item names (optional pills)
   const { data: woodRow } = woodId
     ? await supabase.from('wood_types').select('id, name').eq('id', woodId).maybeSingle()
     : { data: null as any };
@@ -64,31 +93,26 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const woodName = woodRow?.name ?? '';
   const itemName = itemRow?.name ?? '';
 
-  // 3) Image URL
-  // ✅ Prefer image_url saved by your admin upload flow
-  // ✅ Fallback to storage path if you ever store image_path instead
-  const imageUrlFromDb = (product as any).image_url as string | null | undefined;
+  // 3) Image handling
+  // ✅ Admin saves image_url (sometimes a full URL, sometimes a storage path)
+  const imageUrlRaw = ((product as any).image_url ?? '') as string;
 
-  const imagePath = (product as any).image_path as string | null | undefined;
-  const imageUrlFromStorage = imagePath
-    ? supabase.storage.from(BUCKET).getPublicUrl(imagePath).data.publicUrl
-    : '';
+  // You may also have legacy image_path — keep fallback
+  const imagePathLegacy = ((product as any).image_path ?? '') as string;
 
-  const finalImageUrl = imageUrlFromDb || imageUrlFromStorage || '';
+  let finalImageUrl = '';
 
-  // 4) Fields
-  const name = (product as any).name ?? 'Product';
-  const price = (product as any).price;
-  const soldOut = Boolean((product as any).sold_out ?? false);
-
-  const sizeIn =
-    (product as any).size_in ??
-    (product as any).size ??
-    (product as any).dimensions ??
-    '';
-
-  const description = (product as any).description ?? '';
-  const care = (product as any).care ?? '';
+  if (imageUrlRaw) {
+    // If it's already a full URL, use it
+    if (isHttpUrl(imageUrlRaw)) {
+      finalImageUrl = imageUrlRaw;
+    } else {
+      // Otherwise treat it as a storage path
+      finalImageUrl = supabase.storage.from(BUCKET).getPublicUrl(imageUrlRaw).data.publicUrl;
+    }
+  } else if (imagePathLegacy) {
+    finalImageUrl = supabase.storage.from(BUCKET).getPublicUrl(imagePathLegacy).data.publicUrl;
+  }
 
   return (
     <div className="min-h-screen pt-28 sm:pt-36 pb-16">
@@ -122,7 +146,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <div>
             <h1 className="text-3xl sm:text-4xl font-semibold text-neutral-900">{name}</h1>
 
-            {/* Optional pill tags */}
+            {/* Optional pills */}
             <div className="mt-3 flex flex-wrap gap-2">
               {itemName ? (
                 <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700">
@@ -142,13 +166,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 </span>
               ) : null}
 
-              {soldOut ? (
-                <span className="rounded-full bg-red-50 px-3 py-1 text-xs text-red-700">
-                  Sold out
-                </span>
-              ) : (
+              {isInStock ? (
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
                   In stock
+                </span>
+              ) : (
+                <span className="rounded-full bg-red-50 px-3 py-1 text-xs text-red-700">
+                  Sold out
                 </span>
               )}
             </div>
@@ -157,7 +181,21 @@ export default async function ProductDetailPage({ params }: PageProps) {
               <p className="mt-4 text-xl font-semibold text-neutral-900">${price.toFixed(2)}</p>
             ) : null}
 
-            {/* Description (from admin page Description box) */}
+            {/* ✅ Buy button (Etsy) */}
+            {buyUrl ? (
+              <div className="mt-6">
+                <a
+                  href={buyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white hover:bg-neutral-800 transition-colors"
+                >
+                  Buy on Etsy
+                </a>
+              </div>
+            ) : null}
+
+            {/* Description */}
             <div className="mt-8">
               <h2 className="text-lg font-semibold text-neutral-900">Description</h2>
               <p className="mt-2 text-sm leading-6 text-neutral-700 whitespace-pre-line">
