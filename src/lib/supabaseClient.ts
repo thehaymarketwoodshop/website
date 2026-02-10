@@ -187,25 +187,32 @@ export async function createProduct(data: {
 
 export async function updateProduct(
   id: string,
-  updates: Partial<
-    Pick<
-      DbProduct,
-      | "name"
-      | "description"
-      | "price_cents"
-      | "buy_url"
-      | "image_url"
-      | "size_label"
-      | "weight_lbs"
-      | "is_in_stock"
-      | "wood_type_id"
-      | "item_type_id"
-    >
-  >
+  updates: Partial<{
+    name: string;
+    description: string | null;
+    materials: string | null;
+    dimensions: string | null;
+    weight_text: string | null;
+    care: string | null;
+
+    price_cents: number;
+    buy_url: string | null;
+
+    image_url: string | null;
+    image_urls: string[] | null;
+
+    size_label: string | null;
+    weight_lbs: number | null;
+
+    is_in_stock: boolean;
+    wood_type_id: string | null;
+    item_type_id: string | null;
+  }>
 ): Promise<void> {
   const { error } = await supabase.from("products").update(updates).eq("id", id);
   if (error) throw error;
 }
+
 
 export async function deleteProduct(id: string): Promise<void> {
   const { error } = await supabase.from("products").delete().eq("id", id);
