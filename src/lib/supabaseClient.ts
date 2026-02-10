@@ -46,6 +46,7 @@ export type DbProduct = {
   buy_url: string | null;
   image_url: string | null;
   size_label: string | null;
+  dimensions: string | null;
   weight_lbs: number | null;
   is_in_stock: boolean;
   wood_type_id: string | null;
