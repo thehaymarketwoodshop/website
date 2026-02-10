@@ -28,6 +28,7 @@ type ProductFormData = {
   buy_url: string;
   image_url: string; // will be set from upload or manual URL
   size_label: string;
+  dimensions: string; // ✅ NEW
   weight_lbs: string;
   is_in_stock: boolean;
   wood_type_id: string;
@@ -38,9 +39,10 @@ const emptyFormData: ProductFormData = {
   name: '',
   description: '',
   price: '',
-  buy_url: '',
+  buy_url: '', // ✅ you mentioned this line specifically — it stays here
   image_url: '',
   size_label: '',
+  dimensions: '', // ✅ NEW
   weight_lbs: '',
   is_in_stock: true,
   wood_type_id: '',
@@ -112,6 +114,9 @@ export default function AdminProductsPage() {
       buy_url: product.buy_url || '',
       image_url: product.image_url || '',
       size_label: product.size_label || '',
+      // ✅ NEW: dimensions (assumes your DbProductWithRelations includes `dimensions`)
+      // If TypeScript complains, add `dimensions: string | null` to DbProduct/DbProductWithRelations in supabaseClient.ts
+      dimensions: (product as any).dimensions || '',
       weight_lbs: product.weight_lbs?.toString() || '',
       is_in_stock: product.is_in_stock,
       wood_type_id: product.wood_type_id || '',
@@ -178,6 +183,8 @@ export default function AdminProductsPage() {
         buy_url: formData.buy_url || null,
         image_url: finalImageUrl,
         size_label: formData.size_label || null,
+        // ✅ NEW: dimensions
+        dimensions: formData.dimensions || null,
         weight_lbs: formData.weight_lbs ? parseFloat(formData.weight_lbs) : null,
         is_in_stock: formData.is_in_stock,
         wood_type_id: formData.wood_type_id || null,
@@ -314,17 +321,29 @@ export default function AdminProductsPage() {
                         )}
                         <div>
                           <p className="font-medium text-neutral-900">{product.name}</p>
+
+                          {/* Existing size_label line */}
                           {product.size_label && (
                             <p className="text-sm text-neutral-500">{product.size_label}</p>
+                          )}
+
+                          {/* ✅ Optional: show dimensions in list view too (you can delete this block if you ONLY want it on click) */}
+                          {(product as any).dimensions && (
+                            <p className="text-xs text-neutral-400">
+                              {(product as any).dimensions}
+                            </p>
                           )}
                         </div>
                       </div>
                     </td>
+
                     <td className="px-6 py-4 text-neutral-600">
                       ${(product.price_cents / 100).toFixed(2)}
                     </td>
+
                     <td className="px-6 py-4 text-neutral-600">{product.item_types?.name || '—'}</td>
                     <td className="px-6 py-4 text-neutral-600">{product.wood_types?.name || '—'}</td>
+
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => handleToggleStock(product)}
@@ -342,6 +361,7 @@ export default function AdminProductsPage() {
                         )}
                       </button>
                     </td>
+
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -411,7 +431,9 @@ export default function AdminProductsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Price (USD)</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Price (USD)
+                    </label>
                     <input
                       type="number"
                       step="0.01"
@@ -423,7 +445,9 @@ export default function AdminProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Weight (lbs)</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Weight (lbs)
+                    </label>
                     <input
                       type="number"
                       step="0.1"
@@ -447,7 +471,7 @@ export default function AdminProductsPage() {
                   />
                 </div>
 
-                {/* ✅ NEW: Local upload + preview */}
+                {/* ✅ Local upload + preview */}
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-neutral-700">Product Image</label>
 
@@ -508,6 +532,19 @@ export default function AdminProductsPage() {
                     className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     placeholder="e.g., Small, Medium, Large"
                   />
+                </div>
+
+                {/* ✅ NEW: Dimensions input */}
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Dimensions</label>
+                  <input
+                    type="text"
+                    value={formData.dimensions}
+                    onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    placeholder='e.g., 18" × 12" × 1.5"'
+                  />
+                  <p className="mt-2 text-xs text-neutral-500">Tip: use L × W × T so it stays consistent.</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
