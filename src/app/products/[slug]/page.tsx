@@ -5,49 +5,7 @@ export const dynamic = "force-dynamic";
 
 type PageProps = { params: { slug: string } };
 
-const SUPABASE_BUCKET_PUBLIC_URL =
-  "https://qrmmqaxeogfuakctmoku.supabase.co/storage/v1/object/public/product-images/";
-
-function normalizeToPublicUrl(raw: string): string {
-  const v = (raw || "").trim();
-  if (!v) return "";
-  if (v.startsWith("http")) return v;
-  // treat as storage path like "products/xxx.jpg"
-  return `${SUPABASE_BUCKET_PUBLIC_URL}${v.replace(/^\/+/, "")}`;
-}
-
-function coerceStringArray(value: unknown): string[] {
-  // Case 1: already an array
-  if (Array.isArray(value)) {
-    return value.filter((x) => typeof x === "string" && x.trim().length > 0) as string[];
-  }
-
-  // Case 2: stringified JSON array: '["a","b"]'
-  if (typeof value === "string") {
-    const s = value.trim();
-    if (!s) return [];
-
-    // try parse JSON array
-    try {
-      const parsed = JSON.parse(s);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .filter((x) => typeof x === "string" && x.trim().length > 0) as string[];
-      }
-    } catch {
-      // ignore
-    }
-
-    // Case 3: single string URL/path stored in the "array" column
-    // (not ideal schema, but we can still handle it)
-    return [s];
-  }
-
-  return [];
-}
-
 export default async function ProductDetailPage({ params }: PageProps) {
-  // Your [slug] is currently being used as PRODUCT ID
   const id = params.slug;
 
   const { data: product, error } = await supabase
@@ -64,7 +22,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <pre className="mt-4 text-xs bg-neutral-50 p-4 rounded-xl overflow-auto">
             {JSON.stringify(error, null, 2)}
           </pre>
-          <Link href="/products" className="mt-6 inline-block text-sm underline">
+          <Link className="mt-6 inline-block text-sm underline" href="/products">
             Back to products
           </Link>
         </div>
@@ -80,7 +38,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <p className="mt-2 text-neutral-600">
             This item may have been removed or the link is invalid.
           </p>
-          <Link href="/products" className="mt-6 inline-block text-sm underline">
+          <Link className="mt-6 inline-block text-sm underline" href="/products">
             Back to products
           </Link>
         </div>
@@ -88,14 +46,11 @@ export default async function ProductDetailPage({ params }: PageProps) {
     );
   }
 
-  // -----------------------------
-  // Product fields
-  // -----------------------------
   const name = (product as any).name ?? "Product";
   const description = (product as any).description ?? "";
 
   const materials = (product as any).materials ?? "";
-  const dimensions = (product as any).dimensions ?? ""; // FREE TEXT
+  const dimensions = (product as any).dimensions ?? "";
   const weightText = (product as any).weight_text ?? "";
   const care = (product as any).care ?? "";
 
@@ -104,17 +59,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   const buyUrl = ((product as any).buy_url ?? "") as string;
 
-  // -----------------------------
-  // Image handling (VERY robust)
-  // -----------------------------
-  const imageUrlsRaw = (product as any).image_urls;
-  const imageUrlSingleRaw = (product as any).image_url;
-
-  const imageUrls = coerceStringArray(imageUrlsRaw);
-  const imageUrlSingle = typeof imageUrlSingleRaw === "string" ? imageUrlSingleRaw : "";
-
-  const rawImage = (imageUrls[0] || imageUrlSingle || "").trim();
-  const finalImageUrl = normalizeToPublicUrl(rawImage);
+  const imageUrls = ((product as any).image_urls ?? []) as string[];
+  const imageUrlSingle = ((product as any).image_url ?? "") as string;
+  const finalImageUrl = (imageUrls[0] || imageUrlSingle || "").trim();
 
   return (
     <div className="min-h-screen pt-28 sm:pt-36 pb-16">
@@ -126,7 +73,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* IMAGE */}
+          {/* Image */}
           <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
             <div className="aspect-[4/3] bg-neutral-100">
               {finalImageUrl ? (
@@ -144,14 +91,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* DETAILS */}
+          {/* Details */}
           <div>
             <h1 className="text-3xl sm:text-4xl font-semibold text-neutral-900">{name}</h1>
 
             {typeof price === "number" ? (
-              <p className="mt-4 text-xl font-semibold text-neutral-900">
-                ${price.toFixed(2)}
-              </p>
+              <p className="mt-4 text-xl font-semibold text-neutral-900">${price.toFixed(2)}</p>
             ) : null}
 
             {buyUrl ? (
@@ -167,7 +112,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </div>
             ) : null}
 
-            {/* ORDER: Description → Materials → Dimensions → Weight → Care */}
             <div className="mt-8 space-y-8">
               <div>
                 <h2 className="text-lg font-semibold text-neutral-900">Description</h2>
@@ -205,15 +149,19 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </div>
             </div>
 
-            {/* OPTIONAL DEBUG (uncomment if needed)
+            {/* DEBUG — REMOVE AFTER FIX */}
             <pre className="mt-10 text-xs bg-neutral-50 p-4 rounded-xl overflow-auto">
               {JSON.stringify(
-                { image_urls_raw: (product as any).image_urls, image_url: (product as any).image_url, finalImageUrl },
+                {
+                  id: (product as any).id,
+                  image_url: (product as any).image_url,
+                  image_urls: (product as any).image_urls,
+                  finalImageUrl,
+                },
                 null,
                 2
               )}
             </pre>
-            */}
           </div>
         </div>
       </div>
