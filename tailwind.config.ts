@@ -13,18 +13,31 @@ const config: Config = {
         display: ['var(--font-sf-display)', 'var(--font-sf-pro)', 'system-ui', 'sans-serif'],
       },
       colors: {
+        // ── Brand palette ───────────────────────────────
+        brand: {
+          charcoal:  '#1C1C1C',  // primary text / logo
+          ivory:     '#FAF8F5',  // background
+          walnut:    '#6B4A2D',  // accent / primary CTA
+          oak:       '#A67C52',  // secondary wood tone
+          stone:     '#CFCAC4',  // UI lines / borders
+          // Lighter tints for hover states & backgrounds
+          'walnut-light': '#8B6242',
+          'walnut-dark':  '#4E3420',
+          'ivory-dark':   '#F0EDE8',
+        },
+        // ── Legacy woodshop scale (kept for backward compat) ──
         woodshop: {
-          50: '#faf8f6',
-          100: '#f5f1ed',
-          200: '#e8e0d8',
-          300: '#d4c4b5',
-          400: '#b9a08a',
-          500: '#a18468',
-          600: '#8b6d52',
-          700: '#725844',
-          800: '#5e493a',
-          900: '#4d3c31',
-          950: '#2a201a',
+          50:  '#FAF8F5',
+          100: '#F0EDE8',
+          200: '#CFCAC4',
+          300: '#B8AFA7',
+          400: '#A67C52',
+          500: '#8B6242',
+          600: '#6B4A2D',
+          700: '#4E3420',
+          800: '#3A2718',
+          900: '#1C1C1C',
+          950: '#0E0E0E',
         },
       },
       animation: {

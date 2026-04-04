@@ -5,6 +5,16 @@
 :root {
   --font-sf-pro: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Helvetica', 'Arial', system-ui, sans-serif;
   --font-sf-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'Helvetica', 'Arial', system-ui, sans-serif;
+
+  /* ── Brand tokens ── */
+  --color-charcoal:     #1C1C1C;
+  --color-ivory:        #FAF8F5;
+  --color-ivory-dark:   #F0EDE8;
+  --color-walnut:       #6B4A2D;
+  --color-walnut-light: #8B6242;
+  --color-walnut-dark:  #4E3420;
+  --color-oak:          #A67C52;
+  --color-stone:        #CFCAC4;
 }
 
 @layer base {
@@ -15,12 +25,15 @@
   }
 
   body {
-    @apply bg-white text-neutral-900 font-sans;
+    background-color: var(--color-ivory);
+    color: var(--color-charcoal);
+    @apply font-sans;
     font-feature-settings: 'kern' 1, 'liga' 1;
   }
 
   ::selection {
-    @apply bg-woodshop-200 text-woodshop-900;
+    background-color: var(--color-stone);
+    color: var(--color-charcoal);
   }
 }
 
@@ -38,89 +51,119 @@
   }
 
   .heading-display {
-    @apply text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-neutral-900;
+    @apply text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight;
+    color: var(--color-charcoal);
     font-family: var(--font-sf-display);
     letter-spacing: -0.025em;
   }
 
   .heading-section {
-    @apply text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-neutral-900;
+    @apply text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight;
+    color: var(--color-charcoal);
     font-family: var(--font-sf-display);
     letter-spacing: -0.02em;
   }
 
   .heading-card {
-    @apply text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900;
+    @apply text-xl sm:text-2xl font-semibold tracking-tight;
+    color: var(--color-charcoal);
     font-family: var(--font-sf-display);
   }
 
   .body-large {
-    @apply text-lg sm:text-xl text-neutral-600 leading-relaxed;
+    @apply text-lg sm:text-xl leading-relaxed;
+    color: color-mix(in srgb, var(--color-charcoal) 65%, transparent);
   }
 
   .body-regular {
-    @apply text-base text-neutral-600 leading-relaxed;
+    @apply text-base leading-relaxed;
+    color: color-mix(in srgb, var(--color-charcoal) 65%, transparent);
   }
 
   .link-subtle {
-    @apply text-neutral-600 hover:text-neutral-900 transition-colors duration-200;
+    @apply transition-colors duration-200;
+    color: color-mix(in srgb, var(--color-charcoal) 60%, transparent);
   }
+  .link-subtle:hover { color: var(--color-charcoal); }
 
+  /* ── Buttons ── */
   .btn-primary {
-    @apply inline-flex items-center justify-center px-6 py-3 
-           bg-neutral-900 text-white font-medium rounded-full
-           hover:bg-neutral-800 active:bg-neutral-700
+    @apply inline-flex items-center justify-center px-6 py-3
+           text-white font-semibold rounded-full
            transition-all duration-200 ease-out
-           focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2;
+           focus:outline-none focus:ring-2 focus:ring-offset-2;
+    background-color: var(--color-walnut);
   }
+  .btn-primary:hover  { background-color: var(--color-walnut-light); }
+  .btn-primary:active { background-color: var(--color-walnut-dark); }
+  .btn-primary:focus  { --tw-ring-color: var(--color-walnut); }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center px-6 py-3 
-           bg-white text-neutral-900 font-medium rounded-full
-           border border-neutral-200
-           hover:bg-neutral-50 hover:border-neutral-300 active:bg-neutral-100
+    @apply inline-flex items-center justify-center px-6 py-3
+           font-semibold rounded-full border
            transition-all duration-200 ease-out
-           focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2;
+           focus:outline-none focus:ring-2 focus:ring-offset-2;
+    background-color: var(--color-ivory);
+    color: var(--color-charcoal);
+    border-color: var(--color-stone);
   }
+  .btn-secondary:hover  { background-color: var(--color-ivory-dark); border-color: var(--color-oak); }
+  .btn-secondary:focus  { --tw-ring-color: var(--color-walnut); }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center px-4 py-2 
-           text-neutral-600 font-medium rounded-lg
-           hover:bg-neutral-100 hover:text-neutral-900
+    @apply inline-flex items-center justify-center px-4 py-2
+           font-medium rounded-lg
            transition-all duration-200 ease-out
-           focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2;
+           focus:outline-none focus:ring-2 focus:ring-offset-2;
+    color: color-mix(in srgb, var(--color-charcoal) 60%, transparent);
   }
+  .btn-ghost:hover { background-color: var(--color-ivory-dark); color: var(--color-charcoal); }
 
+  /* ── Cards ── */
   .card {
-    @apply bg-white rounded-2xl border border-neutral-100
-           shadow-sm hover:shadow-md
-           transition-shadow duration-300 ease-out;
+    @apply rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 ease-out;
+    background-color: var(--color-ivory);
+    border: 1px solid var(--color-stone);
   }
 
+  /* ── Form inputs ── */
   .input-field {
-    @apply w-full px-4 py-3 
-           bg-neutral-50 border border-neutral-200 rounded-xl
-           text-neutral-900 placeholder:text-neutral-400
-           focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent
-           transition-all duration-200;
+    @apply w-full px-4 py-3 rounded-xl transition-all duration-200;
+    background-color: var(--color-ivory-dark);
+    border: 1px solid var(--color-stone);
+    color: var(--color-charcoal);
+  }
+  .input-field::placeholder { color: color-mix(in srgb, var(--color-charcoal) 35%, transparent); }
+  .input-field:focus {
+    outline: none;
+    border-color: var(--color-walnut);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-walnut) 15%, transparent);
   }
 
+  /* ── Filter pills ── */
   .filter-pill {
     @apply inline-flex items-center justify-center px-4 py-2
-           text-sm font-medium rounded-full
-           border transition-all duration-200 ease-out
-           focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2;
+           text-sm font-medium rounded-full border transition-all duration-200 ease-out;
   }
 
   .filter-pill-inactive {
-    @apply filter-pill bg-white text-neutral-600 border-neutral-200
-           hover:bg-neutral-50 hover:border-neutral-300;
+    @apply filter-pill;
+    background-color: var(--color-ivory);
+    color: color-mix(in srgb, var(--color-charcoal) 60%, transparent);
+    border-color: var(--color-stone);
+  }
+  .filter-pill-inactive:hover {
+    background-color: var(--color-ivory-dark);
+    border-color: var(--color-oak);
   }
 
   .filter-pill-active {
-    @apply filter-pill bg-neutral-900 text-white border-neutral-900
-           hover:bg-neutral-800;
+    @apply filter-pill;
+    background-color: var(--color-walnut);
+    color: white;
+    border-color: var(--color-walnut);
   }
+  .filter-pill-active:hover { background-color: var(--color-walnut-light); }
 }
 
 @layer utilities {

@@ -43,15 +43,16 @@ export function CartDrawer() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col"
+            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-md shadow-2xl flex flex-col"
+            style={{ backgroundColor: 'var(--color-ivory)' }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-100">
+            <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid var(--color-stone)' }}>
               <div className="flex items-center gap-3">
-                <ShoppingBag size={20} className="text-neutral-700" />
-                <h2 className="text-lg font-semibold text-neutral-900">Your Cart</h2>
+                <ShoppingBag size={20} style={{ color: 'var(--color-walnut)' }} />
+                <h2 className="text-lg font-semibold" style={{ color: 'var(--color-charcoal)' }}>Your Cart</h2>
                 {lines.length > 0 && (
-                  <span className="px-2 py-0.5 bg-neutral-900 text-white text-xs font-semibold rounded-full">
+                  <span className="px-2 py-0.5 text-white text-xs font-semibold rounded-full" style={{ backgroundColor: 'var(--color-walnut)' }}>
                     {cart?.totalQuantity}
                   </span>
                 )}
@@ -74,7 +75,7 @@ export function CartDrawer() {
                   <p className="text-sm text-neutral-400 mt-1">Add something beautiful to get started</p>
                   <button
                     onClick={closeCart}
-                    className="mt-6 px-5 py-2.5 bg-neutral-900 text-white text-sm font-semibold rounded-full hover:bg-neutral-700 transition-colors"
+                    className="mt-6 px-5 py-2.5 bg-brand-walnut text-white rounded-full hover:bg-brand-walnut-light transition-colors"
                   >
                     Continue Shopping
                   </button>
@@ -163,7 +164,7 @@ export function CartDrawer() {
 
             {/* Footer — only show when cart has items */}
             {lines.length > 0 && (
-              <div className="px-6 py-5 border-t border-neutral-100 space-y-4 bg-white">
+              <div className="px-6 py-5 space-y-4" style={{ borderTop: '1px solid var(--color-stone)', backgroundColor: 'var(--color-ivory)' }}>
                 {/* Subtotal */}
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-neutral-500">Subtotal</span>
@@ -181,7 +182,7 @@ export function CartDrawer() {
                 {/* Checkout button */}
                 <a
                   href={cart?.checkoutUrl}
-                  className="flex items-center justify-center w-full py-4 bg-neutral-900 text-white text-sm font-semibold rounded-full hover:bg-neutral-700 transition-colors"
+                  className="flex items-center justify-center w-full py-4 bg-brand-walnut text-white rounded-full hover:bg-brand-walnut-light transition-colors"
                 >
                   Checkout
                 </a>
