@@ -84,17 +84,17 @@ export function GalleryFilters({
           className={cn(
             'flex items-center gap-3 w-full px-4 py-3 rounded-xl border transition-all duration-200',
             filters.inStock
-              ? 'bg-neutral-900 text-white border-neutral-900'
-              : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+              ? 'bg-brand-walnut text-white border-brand-walnut'
+              : 'bg-brand-ivory text-neutral-600 border-neutral-200 hover:border-neutral-300'
           )}
         >
           <div
             className={cn(
               'w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors',
-              filters.inStock ? 'bg-white border-white' : 'border-neutral-300'
+              filters.inStock ? 'bg-brand-ivory border-brand-ivory' : 'border-neutral-300'
             )}
           >
-            {filters.inStock && <Check size={14} className="text-neutral-900" />}
+            {filters.inStock && <Check size={14} className="text-brand-walnut" />}
           </div>
           <span className="font-medium">In Stock Only</span>
         </button>
@@ -134,7 +134,7 @@ export function GalleryFilters({
               className={cn(
                 'px-4 py-2 text-sm font-medium rounded-full transition-all duration-200',
                 filters.size === size
-                  ? 'bg-neutral-900 text-white shadow-sm'
+                  ? 'bg-brand-walnut text-white shadow-sm'
                   : 'text-neutral-600 hover:text-neutral-900'
               )}
             >
@@ -186,7 +186,7 @@ export function GalleryFilters({
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-neutral-900">Filters</h2>
             {activeCount > 0 && (
-              <span className="px-2.5 py-0.5 bg-neutral-900 text-white text-xs font-medium rounded-full">
+              <span className="px-2.5 py-0.5 bg-brand-walnut text-white text-xs font-medium rounded-full">
                 {activeCount}
               </span>
             )}
@@ -199,12 +199,12 @@ export function GalleryFilters({
       <div className="lg:hidden mb-6">
         <button
           onClick={() => setIsMobileOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-200 rounded-full text-neutral-900 font-medium hover:border-neutral-300 transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 bg-brand-ivory border border-neutral-200 rounded-full text-neutral-900 font-medium hover:border-brand-walnut transition-colors"
         >
           <SlidersHorizontal size={18} />
           Filters
           {activeCount > 0 && (
-            <span className="px-2 py-0.5 bg-neutral-900 text-white text-xs font-medium rounded-full">
+            <span className="px-2 py-0.5 bg-brand-walnut text-white text-xs font-medium rounded-full">
               {activeCount}
             </span>
           )}
@@ -230,13 +230,13 @@ export function GalleryFilters({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-hidden"
+              className="absolute bottom-0 left-0 right-0 bg-brand-ivory rounded-t-3xl max-h-[85vh] overflow-hidden"
             >
               <div className="flex items-center justify-between p-6 border-b border-neutral-100">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-semibold text-neutral-900">Filters</h2>
                   {activeCount > 0 && (
-                    <span className="px-2.5 py-0.5 bg-neutral-900 text-white text-xs font-medium rounded-full">
+                    <span className="px-2.5 py-0.5 bg-brand-walnut text-white text-xs font-medium rounded-full">
                       {activeCount}
                     </span>
                   )}
@@ -254,10 +254,10 @@ export function GalleryFilters({
                 <FilterContent />
               </div>
 
-              <div className="p-6 border-t border-neutral-100 bg-white">
+              <div className="p-6 border-t border-neutral-100 bg-brand-ivory">
                 <button
                   onClick={() => setIsMobileOpen(false)}
-                  className="w-full px-6 py-3 bg-neutral-900 text-white font-medium rounded-full hover:bg-neutral-800 transition-colors"
+                  className="w-full px-6 py-3 bg-brand-walnut text-white font-medium rounded-full hover:bg-brand-walnut-light transition-colors"
                 >
                   Show Results
                 </button>

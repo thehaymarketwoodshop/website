@@ -80,7 +80,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               ) : (
                 <Link
                   href={`/products/${product.slug}`}
-                  className="flex items-center justify-center w-full px-4 py-2.5 bg-neutral-900 text-white text-sm font-semibold rounded-full hover:bg-neutral-700 transition-colors"
+                  className="flex items-center justify-center w-full px-4 py-2.5 bg-brand-walnut text-white text-sm font-semibold rounded-full hover:bg-brand-walnut-light transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >
                   View Details

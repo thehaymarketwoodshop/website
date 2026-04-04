@@ -47,8 +47,8 @@ export function AddToCartButton({ variants, compact = false }: AddToCartButtonPr
               className={[
                 'px-4 py-2 text-sm font-medium rounded-full border transition-all',
                 selectedVariantId === v.id
-                  ? 'bg-neutral-900 text-white border-neutral-900'
-                  : 'bg-white text-neutral-700 border-neutral-300 hover:border-neutral-900',
+                  ? 'bg-brand-walnut text-white border-brand-walnut'
+                  : 'bg-brand-ivory text-neutral-700 border-neutral-300 hover:border-brand-walnut',
                 !v.availableForSale ? 'opacity-40 cursor-not-allowed line-through' : '',
               ].join(' ')}
             >
@@ -70,7 +70,7 @@ export function AddToCartButton({ variants, compact = false }: AddToCartButtonPr
               : 'w-full px-6 py-3.5 text-sm',
             justAdded
               ? 'bg-emerald-600 text-white'
-              : 'bg-neutral-900 text-white hover:bg-neutral-700',
+              : 'bg-brand-walnut text-white hover:bg-brand-walnut-light',
             (isAdding || justAdded) ? 'cursor-not-allowed' : '',
           ].join(' ')}
         >
