@@ -8,3 +8,5 @@ export { GalleryFilters } from './GalleryFilters';
 export { ContactForm } from './ContactForm';
 export { ImagePlaceholder } from './ImagePlaceholder';
 export { WoodDetailSection } from "./WoodDetailSection";
+export { CartDrawer } from './CartDrawer';
+export { AddToCartButton } from './AddToCartButton';

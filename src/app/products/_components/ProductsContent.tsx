@@ -15,7 +15,6 @@ import {
   ShopifyProduct,
   getProductPrice,
   getProductImages,
-  getShopifyCheckoutUrl,
   getWoodTypeFromTags,
   getSizeFromTags,
 } from '@/lib/shopifyClient';
@@ -33,7 +32,14 @@ function shopifyToProduct(p: ShopifyProduct): Product {
   const images = getProductImages(p);
   const woodType = getWoodTypeFromTags(p.tags);
   const size = getSizeFromTags(p.tags);
-  const buyUrl = getShopifyCheckoutUrl(p);
+
+  // Pass variants through so AddToCartButton can use them
+  const variants = p.variants.edges.map((e) => ({
+    id: e.node.id,
+    title: e.node.availableForSale ? e.node.id : e.node.id,
+    availableForSale: e.node.availableForSale,
+    priceV2: e.node.priceV2,
+  }));
 
   return {
     id: p.id,
@@ -46,13 +52,12 @@ function shopifyToProduct(p: ShopifyProduct): Product {
     dimensions: '',
     description: p.description,
     images,
-    etsyUrl: '',
-    buyUrl,
     soldOut: !p.availableForSale,
     featured: false,
     createdAt: '',
     price: price ?? undefined,
-  } as Product;
+    variants,
+  } as any;
 }
 
 function ProductsInner({ initialProducts, itemTypes, woodTypes }: ProductsContentProps) {

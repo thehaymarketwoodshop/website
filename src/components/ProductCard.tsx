@@ -3,9 +3,9 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingBag } from 'lucide-react';
 import { Product } from '@/types/product';
 import { cn } from '@/lib/utils';
+import { AddToCartButton } from './AddToCartButton';
 
 interface ProductCardProps {
   product: Product;
@@ -13,24 +13,14 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
-  const buyUrl =
-    (product as any).buyUrl ||
-    (product as any).buy_url ||
-    (product as any).etsyUrl ||
-    '';
+  const variants: { id: string; title: string; availableForSale: boolean; priceV2: { amount: string; currencyCode: string } }[] =
+    (product as any).variants ?? [];
 
   const imageSrc =
     (product?.images && product.images[0]) ||
     (product as any).imageUrl ||
     (product as any).image ||
     '/placeholders/placeholder.jpg';
-
-  const handleBuyClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!buyUrl) return;
-    window.open(buyUrl, '_blank', 'noopener,noreferrer');
-  };
 
   return (
     <motion.article
@@ -80,25 +70,13 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               )}
             </div>
 
-            <div className="mt-4">
-              {product.soldOut ? (
-                <button
-                  disabled
-                  className="w-full px-4 py-2.5 bg-neutral-100 text-neutral-400 text-sm font-medium rounded-full cursor-not-allowed"
-                >
+            <div className="mt-4" onClick={(e) => e.preventDefault()}>
+              {variants.length > 0 ? (
+                <AddToCartButton variants={variants} compact />
+              ) : product.soldOut ? (
+                <button disabled className="w-full px-4 py-2.5 bg-neutral-100 text-neutral-400 text-sm font-medium rounded-full cursor-not-allowed">
                   Sold Out
                 </button>
-              ) : buyUrl ? (
-                <a
-                  href={buyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleBuyClick}
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-neutral-900 text-white text-sm font-semibold rounded-full hover:bg-neutral-700 transition-colors"
-                >
-                  <ShoppingBag size={14} />
-                  Shop Now
-                </a>
               ) : (
                 <Link
                   href={`/products/${product.slug}`}

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCart } from '@/context/CartContext';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -20,6 +21,7 @@ export function Navbar() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { itemCount, openCart } = useCart();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -71,6 +73,20 @@ export function Navbar() {
                 </Link>
               ))}
             </div>
+
+            {/* Cart button */}
+            <button
+              onClick={openCart}
+              className="relative p-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+              aria-label="Open cart"
+            >
+              <ShoppingBag size={22} />
+              {itemCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-neutral-900 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none">
+                  {itemCount > 9 ? '9+' : itemCount}
+                </span>
+              )}
+            </button>
 
             {/* Mobile Menu Button */}
             <button

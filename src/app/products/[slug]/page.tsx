@@ -1,15 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ShoppingBag, Clock, Tag } from 'lucide-react';
+import { Clock, Tag } from 'lucide-react';
 
 import {
   fetchProductByHandle,
   getProductPrice,
-  getShopifyCheckoutUrl,
-  getShopifyProductUrl,
   getWoodTypeFromTags,
 } from '@/lib/shopifyClient';
 import { ProductImageGallery } from '../_components/ProductImageGallery';
+import { AddToCartButton } from '@/components/AddToCartButton';
 
 export const revalidate = 60;
 
@@ -21,9 +20,14 @@ export default async function ProductDetailPage({ params }: PageProps) {
   if (!product) notFound();
 
   const price = getProductPrice(product);
-  const checkoutUrl = getShopifyCheckoutUrl(product);
-  const shopifyUrl = getShopifyProductUrl(product.handle);
   const woodType = getWoodTypeFromTags(product.tags);
+
+  const variants = product.variants.edges.map((e) => ({
+    id: e.node.id,
+    title: e.node.id,
+    availableForSale: e.node.availableForSale,
+    priceV2: e.node.priceV2,
+  }));
 
   const images = product.images.edges.map((e) => ({
     url: e.node.url,
@@ -36,8 +40,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const materials = product.materialsMetafield?.value ?? '';
   const weight = product.weightMetafield?.value ?? '';
   const leadTime = product.leadTimeMetafield?.value ?? '';
-
-  const isAvailable = product.availableForSale;
 
   return (
     <div className="min-h-screen pt-28 sm:pt-36 pb-20">
@@ -88,7 +90,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             {/* Stock status */}
             <div className="mt-3">
-              {isAvailable ? (
+              {product.availableForSale ? (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
                   In stock
@@ -101,36 +103,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
               )}
             </div>
 
-            {/* CTA buttons */}
-            <div className="mt-7 flex flex-col sm:flex-row gap-3">
-              {isAvailable ? (
-                <>
-                  <a
-                    href={checkoutUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 flex-1 px-6 py-3.5 bg-neutral-900 text-white text-sm font-semibold rounded-full hover:bg-neutral-700 transition-colors"
-                  >
-                    <ShoppingBag size={16} />
-                    Buy Now
-                  </a>
-                  <a
-                    href={shopifyUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center flex-1 px-6 py-3.5 bg-white text-neutral-900 text-sm font-semibold rounded-full border border-neutral-300 hover:border-neutral-900 transition-colors"
-                  >
-                    View in Store
-                  </a>
-                </>
-              ) : (
-                <button
-                  disabled
-                  className="flex-1 px-6 py-3.5 bg-neutral-100 text-neutral-400 text-sm font-semibold rounded-full cursor-not-allowed"
-                >
-                  Sold Out
-                </button>
-              )}
+            {/* Add to Cart */}
+            <div className="mt-7">
+              <AddToCartButton variants={variants} />
             </div>
 
             {/* Lead time */}
