@@ -6,13 +6,16 @@ export interface Product {
   name: string;
   slug: string;
   category: string;
-  itemType: ItemType;
-  size: Size;
+  itemType: ItemType | string;
+  size: Size | string;
   woodType: string;
   dimensions: string;
   description: string;
   images: string[];
-  etsyUrl: string;
+  /** Shopify checkout / product URL */
+  buyUrl?: string;
+  /** @deprecated use buyUrl instead */
+  etsyUrl?: string;
   soldOut: boolean;
   featured: boolean;
   createdAt: string;

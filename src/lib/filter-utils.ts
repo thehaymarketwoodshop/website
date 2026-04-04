@@ -8,8 +8,9 @@ export function parseFiltersFromParams(searchParams: URLSearchParams): GalleryFi
 
   return {
     inStock: inStockParam === null ? DEFAULT_FILTERS.inStock : inStockParam === '1',
+    // Accept any non-empty string — supports Shopify productType values (e.g. "Tables") as well as old slugs
     itemTypes: typeParam
-      ? (typeParam.split(',').filter((t) => ['small_goods', 'tables', 'cabinets'].includes(t)) as ItemType[])
+      ? (typeParam.split(',').filter(Boolean) as ItemType[])
       : [],
     size: sizeParam && ['small', 'medium', 'large'].includes(sizeParam) ? (sizeParam as Size) : null,
     woodTypes: woodParam ? woodParam.split(',').filter(Boolean) : [],

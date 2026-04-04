@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ExternalLink } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { Product } from '@/types/product';
 import { cn } from '@/lib/utils';
 
@@ -13,10 +13,10 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
-  const etsyUrl =
-    (product as any).etsyUrl ||
+  const buyUrl =
     (product as any).buyUrl ||
     (product as any).buy_url ||
+    (product as any).etsyUrl ||
     '';
 
   const imageSrc =
@@ -25,11 +25,11 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     (product as any).image ||
     '/placeholders/placeholder.jpg';
 
-  const handleEtsyClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleBuyClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!etsyUrl) return;
-    window.open(etsyUrl, '_blank', 'noopener,noreferrer');
+    if (!buyUrl) return;
+    window.open(buyUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -68,8 +68,9 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                   {product.name}
                 </h3>
 
-                {/* Keep this if you want wood under name on grid; remove if you don't */}
-                <p className="mt-1 text-sm text-neutral-500">{(product as any).woodType || ''}</p>
+                {(product as any).woodType && (
+                  <p className="mt-1 text-sm text-neutral-500 capitalize">{(product as any).woodType}</p>
+                )}
               </div>
 
               {typeof product.price === 'number' && (
@@ -87,24 +88,25 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 >
                   Sold Out
                 </button>
-              ) : etsyUrl ? (
+              ) : buyUrl ? (
                 <a
-                  href={etsyUrl}
+                  href={buyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={handleEtsyClick}
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-full hover:bg-neutral-800 transition-colors"
+                  onClick={handleBuyClick}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-neutral-900 text-white text-sm font-semibold rounded-full hover:bg-neutral-700 transition-colors"
                 >
-                  Buy on Etsy
-                  <ExternalLink size={14} />
+                  <ShoppingBag size={14} />
+                  Shop Now
                 </a>
               ) : (
-                <button
-                  disabled
-                  className="w-full px-4 py-2.5 bg-neutral-100 text-neutral-400 text-sm font-medium rounded-full cursor-not-allowed"
+                <Link
+                  href={`/products/${product.slug}`}
+                  className="flex items-center justify-center w-full px-4 py-2.5 bg-neutral-900 text-white text-sm font-semibold rounded-full hover:bg-neutral-700 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  Link coming soon
-                </button>
+                  View Details
+                </Link>
               )}
             </div>
           </div>
