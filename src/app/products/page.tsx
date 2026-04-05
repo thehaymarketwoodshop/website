@@ -10,13 +10,14 @@ export default async function ProductsPage() {
     return [];
   });
 
-  const { itemTypes, woodTypes } = deriveFilterOptions(products);
+  const { itemTypes, woodTypes, sizes } = deriveFilterOptions(products);
 
   return (
     <ProductsContent
       initialProducts={products}
       itemTypes={itemTypes}
       woodTypes={woodTypes}
+      sizes={sizes}
     />
   );
 }

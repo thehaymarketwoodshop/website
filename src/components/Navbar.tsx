@@ -56,7 +56,7 @@ export function Navbar() {
 
             {/* Logo — links to home */}
             <Link href="/" className="flex items-center gap-3 group flex-shrink-0" aria-label="The Haymarket Woodshop — Home">
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 transition-transform duration-200 group-hover:scale-105 -my-2">
+              <div className="relative w-20 h-20 sm:w-[100px] sm:h-[100px] transition-transform duration-200 group-hover:scale-105 -my-3">
                 <Image
                   src="/logo.png"
                   alt="The Haymarket Woodshop"
@@ -168,7 +168,7 @@ export function Navbar() {
             >
               {/* Mobile logo */}
               <div className="flex items-center gap-3 px-6 pt-6 pb-4" style={{ borderBottom: '1px solid var(--color-stone)' }}>
-                <div className="relative w-12 h-12">
+                <div className="relative w-14 h-14">
                   <Image src="/logo.png" alt="The Haymarket Woodshop" fill className="object-contain" />
                 </div>
                 <span className="text-sm font-semibold" style={{ color: 'var(--color-charcoal)' }}>

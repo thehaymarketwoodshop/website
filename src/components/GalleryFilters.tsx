@@ -8,7 +8,6 @@ import {
   DEFAULT_FILTERS,
   ItemType,
   Size,
-  SIZE_LABELS,
 } from '@/types/product';
 import { countActiveFilters, areFiltersDefault } from '@/lib/filter-utils';
 import { cn } from '@/lib/utils';
@@ -19,9 +18,10 @@ interface GalleryFiltersProps {
   filters: GalleryFiltersType;
   onFiltersChange: (filters: GalleryFiltersType) => void;
 
-  // ✅ Dynamic options from Supabase
+  // Dynamic options from Shopify
   woodTypes: FilterOption[];
   itemTypes: FilterOption[];
+  sizes: FilterOption[];
 }
 
 export function GalleryFilters({
@@ -29,6 +29,7 @@ export function GalleryFilters({
   onFiltersChange,
   woodTypes,
   itemTypes,
+  sizes,
 }: GalleryFiltersProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const activeCount = countActiveFilters(filters);
@@ -100,70 +101,76 @@ export function GalleryFilters({
         </button>
       </div>
 
-      {/* Item Type */}
-      <div>
-        <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
-          Item Type
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {itemTypes.map((t) => {
-            const selected = (filters.itemTypes as unknown as string[]).includes(t.name);
-            return (
+      {/* Item Type — only shown when products have a productType set in Shopify */}
+      {itemTypes.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
+            Item Type
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {itemTypes.map((t) => {
+              const selected = (filters.itemTypes as unknown as string[]).includes(t.name);
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => handleItemTypeToggle(t.name)}
+                  className={cn('filter-pill', selected ? 'filter-pill-active' : 'filter-pill-inactive')}
+                >
+                  {t.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Size — only shown when Shopify products have size tags */}
+      {sizes.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
+            Size
+          </h3>
+          <div className="inline-flex p-1 bg-neutral-100 rounded-full">
+            {sizes.map((s) => (
               <button
-                key={t.id}
-                onClick={() => handleItemTypeToggle(t.name)}
-                className={cn('filter-pill', selected ? 'filter-pill-active' : 'filter-pill-inactive')}
+                key={s.id}
+                onClick={() => handleSizeChange(s.id as Size)}
+                className={cn(
+                  'px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 capitalize',
+                  filters.size === s.id
+                    ? 'bg-brand-walnut text-white shadow-sm'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                )}
               >
-                {t.name}
+                {s.name}
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Size */}
-      <div>
-        <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
-          Size
-        </h3>
-        <div className="inline-flex p-1 bg-neutral-100 rounded-full">
-          {(Object.keys(SIZE_LABELS) as Size[]).map((size) => (
-            <button
-              key={size}
-              onClick={() => handleSizeChange(size)}
-              className={cn(
-                'px-4 py-2 text-sm font-medium rounded-full transition-all duration-200',
-                filters.size === size
-                  ? 'bg-brand-walnut text-white shadow-sm'
-                  : 'text-neutral-600 hover:text-neutral-900'
-              )}
-            >
-              {SIZE_LABELS[size]}
-            </button>
-          ))}
+      {/* Wood / Material Type — only shown when products have non-reserved tags in Shopify */}
+      {woodTypes.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
+            Material
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {woodTypes.map((w) => (
+              <button
+                key={w.id}
+                onClick={() => handleWoodTypeToggle(w.name)}
+                className={cn(
+                  'filter-pill',
+                  filters.woodTypes.includes(w.name) ? 'filter-pill-active' : 'filter-pill-inactive'
+                )}
+              >
+                {w.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-
-      {/* Wood Type */}
-      <div>
-        <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
-          Wood Type
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {woodTypes.map((w) => (
-            <button
-              key={w.id}
-              onClick={() => handleWoodTypeToggle(w.name)}
-              className={cn(
-                'filter-pill',
-                filters.woodTypes.includes(w.name) ? 'filter-pill-active' : 'filter-pill-inactive'
-              )}
-            >
-              {w.name}
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* Clear */}
       {!isDefault && (

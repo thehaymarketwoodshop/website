@@ -223,11 +223,15 @@ export function getShopifyCheckoutUrl(product: ShopifyProduct): string {
 }
 
 /** Finds a wood-type tag from a product's tags array. */
+/** Reserved tags that are NOT material/wood types. */
+const RESERVED_TAGS = new Set(['small', 'medium', 'large', 'featured']);
+
+/**
+ * Returns the first non-reserved tag as the material/wood type.
+ * Any tag you add in Shopify (e.g. "Walnut", "Hickory", "Painted") is returned as-is.
+ */
 export function getWoodTypeFromTags(tags: string[]): string {
-  const KNOWN_WOOD_TYPES = ['walnut', 'maple', 'oak', 'cherry', 'ash', 'pine', 'cedar'];
-  return (
-    tags.find((t) => KNOWN_WOOD_TYPES.includes(t.toLowerCase())) ?? ''
-  );
+  return tags.find((t) => !RESERVED_TAGS.has(t.toLowerCase())) ?? '';
 }
 
 /** Finds a size tag (Small / Medium / Large) from a product's tags. */
@@ -241,17 +245,25 @@ export function getSizeFromTags(tags: string[]): string {
  * Item types  → product.productType
  * Wood types  → product.tags (matched against known wood types)
  */
+const SIZE_ORDER: Record<string, number> = { small: 0, medium: 1, large: 2 };
+
 export function deriveFilterOptions(products: ShopifyProduct[]): {
   itemTypes: { id: string; name: string }[];
   woodTypes: { id: string; name: string }[];
+  sizes: { id: string; name: string }[];
 } {
   const itemTypeSet = new Set<string>();
   const woodTypeSet = new Set<string>();
+  const sizeSet = new Set<string>();
 
   for (const p of products) {
     if (p.productType) itemTypeSet.add(p.productType);
-    const wood = getWoodTypeFromTags(p.tags);
-    if (wood) woodTypeSet.add(wood);
+    // Collect ALL non-reserved tags as material/wood options
+    for (const tag of p.tags) {
+      if (!RESERVED_TAGS.has(tag.toLowerCase())) woodTypeSet.add(tag);
+    }
+    const size = getSizeFromTags(p.tags);
+    if (size) sizeSet.add(size);
   }
 
   const toOption = (name: string) => ({ id: name.toLowerCase(), name });
@@ -259,5 +271,8 @@ export function deriveFilterOptions(products: ShopifyProduct[]): {
   return {
     itemTypes: Array.from(itemTypeSet).sort().map(toOption),
     woodTypes: Array.from(woodTypeSet).sort().map(toOption),
+    sizes: Array.from(sizeSet)
+      .sort((a, b) => (SIZE_ORDER[a] ?? 99) - (SIZE_ORDER[b] ?? 99))
+      .map(toOption),
   };
 }

@@ -25,6 +25,7 @@ interface ProductsContentProps {
   initialProducts: ShopifyProduct[];
   itemTypes: FilterOption[];
   woodTypes: FilterOption[];
+  sizes: FilterOption[];
 }
 
 function shopifyToProduct(p: ShopifyProduct): Product {
@@ -60,7 +61,7 @@ function shopifyToProduct(p: ShopifyProduct): Product {
   } as any;
 }
 
-function ProductsInner({ initialProducts, itemTypes, woodTypes }: ProductsContentProps) {
+function ProductsInner({ initialProducts, itemTypes, woodTypes, sizes }: ProductsContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -156,6 +157,7 @@ function ProductsInner({ initialProducts, itemTypes, woodTypes }: ProductsConten
               onFiltersChange={handleFiltersChange}
               woodTypes={woodTypes}
               itemTypes={itemTypes}
+              sizes={sizes}
             />
 
             <div className="flex-1 min-w-0">
