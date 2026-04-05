@@ -50,6 +50,8 @@ function shopifyToProduct(p: ShopifyProduct): Product {
     itemType: p.productType as any,
     size: size as any,
     woodType: woodType as any,
+    // Keep the full raw tags array so filters can match against any tag
+    tags: p.tags,
     dimensions: '',
     description: p.description,
     images,
@@ -99,19 +101,22 @@ function ProductsInner({ initialProducts, itemTypes, woodTypes, sizes }: Product
     return allProducts.filter((product) => {
       if (filters.inStock && product.soldOut) return false;
 
+      // Item type: compare against productType field (case-insensitive)
       if (selectedItemTypes.length > 0) {
         const item = String((product as any).itemType ?? '').toLowerCase();
         if (!selectedItemTypes.includes(item)) return false;
       }
 
+      // Size + Material: compare against the full raw tags array from Shopify
+      // so every tag on a product is matchable, not just the first derived one
+      const productTags = ((product as any).tags ?? []).map((t: string) => t.toLowerCase());
+
       if (filters.size) {
-        const size = String((product as any).size ?? '').toLowerCase();
-        if (size !== filters.size.toLowerCase()) return false;
+        if (!productTags.includes(filters.size.toLowerCase())) return false;
       }
 
       if (selectedWoodTypes.length > 0) {
-        const wood = String((product as any).woodType ?? '').toLowerCase();
-        if (!selectedWoodTypes.includes(wood)) return false;
+        if (!selectedWoodTypes.some((wt) => productTags.includes(wt))) return false;
       }
 
       return true;

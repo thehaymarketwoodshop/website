@@ -12,7 +12,7 @@ export function parseFiltersFromParams(searchParams: URLSearchParams): GalleryFi
     itemTypes: typeParam
       ? (typeParam.split(',').filter(Boolean) as ItemType[])
       : [],
-    size: sizeParam && ['small', 'medium', 'large'].includes(sizeParam) ? (sizeParam as Size) : null,
+    size: sizeParam ? (sizeParam as Size) : null,
     woodTypes: woodParam ? woodParam.split(',').filter(Boolean) : [],
   };
 }
