@@ -17,6 +17,7 @@ import {
   getProductImages,
   getWoodTypeFromTags,
   getSizeFromTags,
+  parseTag,
 } from '@/lib/shopifyClient';
 
 type FilterOption = { id: string; name: string };
@@ -101,22 +102,34 @@ function ProductsInner({ initialProducts, itemTypes, woodTypes, sizes }: Product
     return allProducts.filter((product) => {
       if (filters.inStock && product.soldOut) return false;
 
-      // Item type: compare against productType field (case-insensitive)
+      // Parse all tags once for this product — strips prefixes, categorises each tag
+      const rawTags: string[] = (product as any).tags ?? [];
+      const parsedTags = rawTags.map(parseTag).filter(Boolean) as { category: string; value: string }[];
+
+      // Item type: match productType field OR "item:xxx" tags (case-insensitive)
       if (selectedItemTypes.length > 0) {
-        const item = String((product as any).itemType ?? '').toLowerCase();
-        if (!selectedItemTypes.includes(item)) return false;
+        const itemTypeFromField = String((product as any).itemType ?? '').toLowerCase();
+        const itemTypeFromTags = parsedTags
+          .filter((t) => t.category === 'item')
+          .map((t) => t.value.toLowerCase());
+        const allItemValues = [itemTypeFromField, ...itemTypeFromTags].filter(Boolean);
+        if (!selectedItemTypes.some((sel) => allItemValues.includes(sel))) return false;
       }
 
-      // Size + Material: compare against the full raw tags array from Shopify
-      // so every tag on a product is matchable, not just the first derived one
-      const productTags = ((product as any).tags ?? []).map((t: string) => t.toLowerCase());
-
+      // Size: match "size:xxx" tags or plain size tags (value is already lowercase)
       if (filters.size) {
-        if (!productTags.includes(filters.size.toLowerCase())) return false;
+        const sizeValues = parsedTags
+          .filter((t) => t.category === 'size')
+          .map((t) => t.value.toLowerCase());
+        if (!sizeValues.includes(filters.size.toLowerCase())) return false;
       }
 
+      // Material: match "material:xxx" tags or plain non-reserved tags
       if (selectedWoodTypes.length > 0) {
-        if (!selectedWoodTypes.some((wt) => productTags.includes(wt))) return false;
+        const materialValues = parsedTags
+          .filter((t) => t.category === 'material')
+          .map((t) => t.value.toLowerCase());
+        if (!selectedWoodTypes.some((wt) => materialValues.includes(wt))) return false;
       }
 
       return true;

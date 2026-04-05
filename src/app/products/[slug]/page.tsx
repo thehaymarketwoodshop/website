@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Clock, Tag } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 import {
   fetchProductByHandle,
@@ -150,20 +150,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </div>
             )}
 
-            {/* Tags */}
-            {product.tags.length > 0 && (
-              <div className="mt-8 flex flex-wrap items-center gap-2">
-                <Tag size={13} className="text-neutral-400" />
-                {product.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2.5 py-1 bg-neutral-100 text-neutral-500 text-xs rounded-full capitalize"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
 
           </div>
         </div>

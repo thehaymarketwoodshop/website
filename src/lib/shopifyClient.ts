@@ -222,28 +222,79 @@ export function getShopifyCheckoutUrl(product: ShopifyProduct): string {
   return `https://${DOMAIN}/cart/${variantId}:1`;
 }
 
-/** Finds a wood-type tag from a product's tags array. */
-/** Reserved tags that are NOT material/wood types. */
-const RESERVED_TAGS = new Set(['small', 'medium', 'large', 'featured']);
+// ─────────────────────────────────────────────
+// TAG PARSING
+// ─────────────────────────────────────────────
 
 /**
- * Returns the first non-reserved tag as the material/wood type.
- * Any tag you add in Shopify (e.g. "Walnut", "Hickory", "Painted") is returned as-is.
+ * Parses a single Shopify tag into a { category, value } pair.
+ *
+ * Supported formats:
+ *   "material:Walnut"  → { category: "material", value: "Walnut" }
+ *   "size:Small"       → { category: "size",     value: "Small"  }
+ *   "item:Table"       → { category: "item",     value: "Table"  }
+ *   "shape:Round"      → { category: "shape",    value: "Round"  }
+ *   "featured"         → null  (reserved, not a filter)
+ *   "Walnut"           → { category: "material", value: "Walnut" } (legacy plain tag)
+ *   "Small"            → { category: "size",     value: "Small"  } (legacy plain size)
+ */
+const PLAIN_SIZES = new Set(['small', 'medium', 'large']);
+
+export function parseTag(tag: string): { category: string; value: string } | null {
+  if (!tag) return null;
+
+  // Prefixed tag  e.g. "material:Walnut"
+  const colonIdx = tag.indexOf(':');
+  if (colonIdx > 0) {
+    const category = tag.slice(0, colonIdx).toLowerCase().trim();
+    const value = tag.slice(colonIdx + 1).trim();
+    if (category && value) return { category, value };
+    return null;
+  }
+
+  // Reserved plain tag
+  if (tag.toLowerCase() === 'featured') return null;
+
+  // Plain size tag (legacy)
+  if (PLAIN_SIZES.has(tag.toLowerCase())) {
+    return { category: 'size', value: tag };
+  }
+
+  // Plain material tag (legacy) — any other tag
+  return { category: 'material', value: tag };
+}
+
+/**
+ * Returns the display value of the first material tag on a product.
+ * Strips any prefix, so "material:Walnut" → "Walnut".
  */
 export function getWoodTypeFromTags(tags: string[]): string {
-  return tags.find((t) => !RESERVED_TAGS.has(t.toLowerCase())) ?? '';
+  for (const tag of tags) {
+    const parsed = parseTag(tag);
+    if (parsed?.category === 'material') return parsed.value;
+  }
+  return '';
 }
 
-/** Finds a size tag (Small / Medium / Large) from a product's tags. */
+/** Returns the display value of the first size tag on a product (lowercase). */
 export function getSizeFromTags(tags: string[]): string {
-  const SIZES = ['small', 'medium', 'large'];
-  return tags.find((t) => SIZES.includes(t.toLowerCase()))?.toLowerCase() ?? '';
+  for (const tag of tags) {
+    const parsed = parseTag(tag);
+    if (parsed?.category === 'size') return parsed.value.toLowerCase();
+  }
+  return '';
 }
 
 /**
- * Derives unique, sorted filter options from all fetched products.
- * Item types  → product.productType
- * Wood types  → product.tags (matched against known wood types)
+ * Derives unique, sorted filter options from all fetched Shopify products.
+ *
+ * Shopify tag conventions:
+ *   productType field  → Item Type filter
+ *   item:Table         → also added to Item Type filter
+ *   material:Walnut    → Material filter (prefix stripped, shows "Walnut")
+ *   size:Small         → Size filter
+ *   shape:Round        → Shape filter (any prefix becomes its own filter group)
+ *   featured           → ignored (used for homepage only)
  */
 const SIZE_ORDER: Record<string, number> = { small: 0, medium: 1, large: 2 };
 
@@ -257,13 +308,22 @@ export function deriveFilterOptions(products: ShopifyProduct[]): {
   const sizeSet = new Set<string>();
 
   for (const p of products) {
+    // Product type field always becomes an item type option
     if (p.productType) itemTypeSet.add(p.productType);
-    // Collect ALL non-reserved tags as material/wood options
+
     for (const tag of p.tags) {
-      if (!RESERVED_TAGS.has(tag.toLowerCase())) woodTypeSet.add(tag);
+      const parsed = parseTag(tag);
+      if (!parsed) continue;
+
+      if (parsed.category === 'item') {
+        itemTypeSet.add(parsed.value);
+      } else if (parsed.category === 'size') {
+        sizeSet.add(parsed.value.toLowerCase());
+      } else if (parsed.category === 'material') {
+        woodTypeSet.add(parsed.value);
+      }
+      // other prefixes (shape, finish, etc.) are ignored for now but won't pollute material list
     }
-    const size = getSizeFromTags(p.tags);
-    if (size) sizeSet.add(size);
   }
 
   const toOption = (name: string) => ({ id: name.toLowerCase(), name });
