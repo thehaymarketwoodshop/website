@@ -128,6 +128,24 @@ type AllProductsData = {
   products: { edges: Array<{ node: ShopifyProduct }> };
 };
 
+/**
+ * Fetch products tagged "featured" in Shopify.
+ * To control the homepage Featured Work section:
+ *   Shopify Admin → Products → select a product → Tags → add "featured"
+ */
+export async function fetchFeaturedProducts(limit = 4): Promise<ShopifyProduct[]> {
+  const data = await shopifyFetch<AllProductsData>(`
+    query FeaturedProducts {
+      products(first: ${limit}, sortKey: CREATED_AT, reverse: true, query: "tag:featured") {
+        edges {
+          node { ${PRODUCT_CARD_FIELDS} }
+        }
+      }
+    }
+  `);
+  return (data?.products?.edges ?? []).map((e) => e.node);
+}
+
 /** Fetch all products (for the product grid). Max 100; add cursor pagination if needed. */
 export async function fetchAllProducts(): Promise<ShopifyProduct[]> {
   const data = await shopifyFetch<AllProductsData>(`

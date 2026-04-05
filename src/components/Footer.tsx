@@ -15,7 +15,7 @@ const footerLinks = {
 
 export function Footer() {
   return (
-    <footer className="border-t border-neutral-100 bg-neutral-50/50">
+    <footer className="border-t" style={{ backgroundColor: 'var(--color-ivory-dark)', borderColor: 'var(--color-stone)' }}>
       <div className="container-wide py-16 sm:py-20">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
           {/* Brand Column */}

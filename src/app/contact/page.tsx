@@ -82,7 +82,7 @@ export default function ContactPage() {
               </div>
 
               {/* Additional Note */}
-              <div className="p-6 bg-neutral-50 rounded-2xl">
+              <div className="p-6 rounded-2xl" style={{ backgroundColor: 'var(--color-ivory-dark)' }}>
                 <h3 className="font-semibold text-neutral-900 mb-2">
                   What to Expect
                 </h3>
