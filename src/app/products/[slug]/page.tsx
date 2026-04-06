@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Clock } from 'lucide-react';
+import { Clock, BookOpen } from 'lucide-react';
 
 import {
   fetchProductByHandle,
@@ -150,6 +150,20 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </div>
             )}
 
+            {/* Care Guide link */}
+            <div className="mt-8 pt-6 border-t border-neutral-100">
+              <Link
+                href="/care-guide"
+                className="inline-flex items-center gap-2.5 px-5 py-3 rounded-full text-sm font-medium transition-colors"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--color-walnut) 10%, var(--color-ivory))',
+                  color: 'var(--color-walnut)',
+                }}
+              >
+                <BookOpen size={16} />
+                How to care for this piece
+              </Link>
+            </div>
 
           </div>
         </div>
