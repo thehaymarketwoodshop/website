@@ -140,6 +140,33 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-walnut) 15%, transparent);
   }
 
+  /* ── Shopify rich-text description ── */
+  .shopify-description {
+    @apply text-sm leading-relaxed;
+    color: color-mix(in srgb, var(--color-charcoal) 70%, transparent);
+  }
+  .shopify-description p { @apply mb-3; }
+  .shopify-description p:last-child { @apply mb-0; }
+  .shopify-description strong { @apply font-semibold; color: var(--color-charcoal); }
+  .shopify-description em { @apply italic; }
+  .shopify-description ul { @apply list-disc pl-5 mb-3 space-y-1; }
+  .shopify-description ol { @apply list-decimal pl-5 mb-3 space-y-1; }
+  .shopify-description li { @apply leading-relaxed; }
+  .shopify-description h1,
+  .shopify-description h2,
+  .shopify-description h3 {
+    @apply font-semibold mb-2 mt-4;
+    color: var(--color-charcoal);
+  }
+  .shopify-description h1 { @apply text-base; }
+  .shopify-description h2 { @apply text-sm; }
+  .shopify-description h3 { @apply text-sm; }
+  .shopify-description a {
+    @apply underline underline-offset-2 transition-colors;
+    color: var(--color-walnut);
+  }
+  .shopify-description a:hover { color: var(--color-walnut-light); }
+
   /* ── Filter pills ── */
   .filter-pill {
     @apply inline-flex items-center justify-center px-4 py-2

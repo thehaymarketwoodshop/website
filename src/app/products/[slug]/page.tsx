@@ -119,12 +119,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
             <hr className="my-8 border-neutral-100" />
 
             {/* Description */}
-            {product.description && (
+            {product.descriptionHtml && (
               <div className="mb-8">
                 <h2 className="text-base font-semibold text-neutral-900 mb-3">Description</h2>
-                <p className="text-sm leading-relaxed text-neutral-600 whitespace-pre-line">
-                  {product.description}
-                </p>
+                <div
+                  className="shopify-description"
+                  dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
+                />
               </div>
             )}
 

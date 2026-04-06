@@ -75,6 +75,7 @@ export interface ShopifyProduct {
   handle: string;
   title: string;
   description: string;
+  descriptionHtml: string;
   productType: string;
   tags: string[];
   availableForSale: boolean;
@@ -100,6 +101,7 @@ const PRODUCT_CARD_FIELDS = `
   handle
   title
   description
+  descriptionHtml
   productType
   tags
   availableForSale
