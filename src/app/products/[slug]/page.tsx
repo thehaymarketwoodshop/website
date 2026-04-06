@@ -161,8 +161,21 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 }}
               >
                 <BookOpen size={16} />
-                How to care for this piece
+                Care Instructions &amp; FAQ
               </Link>
+            </div>
+
+            {/* Note on Authenticity */}
+            <div
+              className="mt-6 rounded-xl px-5 py-4"
+              style={{ backgroundColor: 'var(--color-ivory-dark)' }}
+            >
+              <p className="text-xs font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-stone)' }}>
+                Note on Authenticity
+              </p>
+              <p className="text-xs leading-relaxed" style={{ color: 'color-mix(in srgb, var(--color-charcoal) 45%, transparent)' }}>
+                As this is a handcrafted product made from organic, locally sourced timber, the grain pattern and color tone of your piece will be unique. No two boards are identical, ensuring your acquisition is a true one-of-one.
+              </p>
             </div>
 
           </div>
