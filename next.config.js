@@ -7,6 +7,11 @@ const nextConfig = {
         hostname: 'qrmmqaxeogfuakctmoku.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.shopify.com',
+        pathname: '/s/files/**',
+      },
     ],
   },
 };
