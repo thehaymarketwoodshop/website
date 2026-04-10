@@ -58,9 +58,9 @@ export default function AboutPage() {
 
             {/* Workshop Image */}
             <div className="my-12 overflow-hidden rounded-2xl shadow-lg">
-              <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+              <div className="relative w-full" style={{ aspectRatio: '3/4', maxHeight: '600px' }}>
                 <Image
-                  src="/about/workshop.jpg"
+                  src="/about/workshop.webp"
                   alt="The Haymarket Woodshop studio"
                   fill
                   className="object-cover"
@@ -101,9 +101,9 @@ export default function AboutPage() {
 
             {/* Cutting Board Image */}
             <div className="my-12 overflow-hidden rounded-2xl shadow-lg">
-              <div className="relative w-full" style={{ aspectRatio: '4/3' }}>
+              <div className="relative w-full" style={{ aspectRatio: '3/4', maxHeight: '600px' }}>
                 <Image
-                  src="/about/cutting-board.jpg"
+                  src="/about/cutting-board.webp"
                   alt="Handcrafted walnut and maple cutting board"
                   fill
                   className="object-cover"
