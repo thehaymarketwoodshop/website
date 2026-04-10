@@ -33,7 +33,7 @@ export function Footer() {
             </h3>
             <Link
               href="/products"
-              className="font-bold text-neutral-900 hover:text-neutral-600 transition-colors"
+              className="text-neutral-600 hover:text-neutral-900 transition-colors"
             >
               Products
             </Link>
