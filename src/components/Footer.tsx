@@ -1,12 +1,6 @@
 import Link from 'next/link';
 
 const footerLinks = {
-  shop: [
-    { href: '/gallery', label: 'Gallery' },
-    { href: '/gallery?type=small_goods', label: 'Small Goods' },
-    { href: '/gallery?type=tables', label: 'Tables' },
-    { href: '/gallery?type=cabinets', label: 'Cabinets' },
-  ],
   company: [
     { href: '/about', label: 'About' },
     { href: '/contact', label: 'Contact' },
@@ -32,23 +26,17 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Shop Links */}
+          {/* Shop Link */}
           <div>
             <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
               Shop
             </h3>
-            <ul className="space-y-3">
-              {footerLinks.shop.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <Link
+              href="/products"
+              className="font-bold text-neutral-900 hover:text-neutral-600 transition-colors"
+            >
+              Products
+            </Link>
           </div>
 
           {/* Company Links */}

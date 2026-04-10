@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Section, ImagePlaceholder } from '@/components';
+import Image from 'next/image';
 
 export const metadata: Metadata = {
   title: 'About',
@@ -14,9 +14,10 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-ivory)' }}>
+
       {/* Hero */}
-      <section className="pt-32 sm:pt-40 pb-16 sm:pb-20 bg-gradient-to-b from-woodshop-50 to-white">
+      <section className="pt-32 sm:pt-40 pb-16 sm:pb-20">
         <div className="container-narrow text-center">
           <h1 className="heading-display">About the Shop</h1>
           <p className="mt-6 body-large max-w-2xl mx-auto text-balance">
@@ -27,13 +28,14 @@ export default function AboutPage() {
       </section>
 
       {/* Main Content */}
-      <Section background="white" className="py-16 sm:py-24">
+      <section className="pb-24 sm:pb-32">
         <div className="container-narrow">
-          <div className="card p-8 sm:p-12 lg:p-16">
+          <div className="rounded-3xl p-8 sm:p-12 lg:p-16" style={{ backgroundColor: 'var(--color-ivory-dark)' }}>
+
             {/* Story Section */}
-            <div className="prose prose-lg max-w-none">
+            <div>
               <h2 className="heading-card text-2xl sm:text-3xl mb-6">Our Story</h2>
-              
+
               <p className="body-large mb-6">
                 The Haymarket Woodshop began with a simple belief: that the
                 things we live with every day deserve to be made with care.
@@ -54,17 +56,22 @@ export default function AboutPage() {
               </p>
             </div>
 
-            {/* Image Placeholder */}
-            <div className="my-12">
-              <ImagePlaceholder
-                aspectRatio="16/9"
-                label="Workshop or craftsperson at work"
-                className="shadow-lg"
-              />
+            {/* Workshop Image */}
+            <div className="my-12 overflow-hidden rounded-2xl shadow-lg">
+              <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+                <Image
+                  src="/about/workshop.jpg"
+                  alt="The Haymarket Woodshop studio"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 800px"
+                  priority
+                />
+              </div>
             </div>
 
-            {/* Philosophy Section */}
-            <div className="prose prose-lg max-w-none">
+            {/* Approach Section */}
+            <div>
               <h2 className="heading-card text-2xl sm:text-3xl mb-6">
                 Our Approach
               </h2>
@@ -92,24 +99,28 @@ export default function AboutPage() {
               </p>
             </div>
 
-            {/* Second Image */}
-            <div className="my-12">
-              <ImagePlaceholder
-                aspectRatio="4/3"
-                label="Detail shot of joinery or finished piece"
-                className="shadow-lg"
-              />
+            {/* Cutting Board Image */}
+            <div className="my-12 overflow-hidden rounded-2xl shadow-lg">
+              <div className="relative w-full" style={{ aspectRatio: '4/3' }}>
+                <Image
+                  src="/about/cutting-board.jpg"
+                  alt="Handcrafted walnut and maple cutting board"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 800px"
+                />
+              </div>
             </div>
 
             {/* Values */}
-            <div className="prose prose-lg max-w-none">
-              <h2 className="heading-card text-2xl sm:text-3xl mb-6">
+            <div>
+              <h2 className="heading-card text-2xl sm:text-3xl mb-8">
                 What We Value
               </h2>
 
-              <div className="grid sm:grid-cols-2 gap-8 not-prose mt-8">
+              <div className="grid sm:grid-cols-2 gap-8">
                 <div>
-                  <h3 className="text-lg font-semibold text-neutral-900 mb-2">
+                  <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-charcoal)' }}>
                     Quality Materials
                   </h3>
                   <p className="body-regular">
@@ -119,7 +130,7 @@ export default function AboutPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-neutral-900 mb-2">
+                  <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-charcoal)' }}>
                     Honest Construction
                   </h3>
                   <p className="body-regular">
@@ -129,7 +140,7 @@ export default function AboutPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-neutral-900 mb-2">
+                  <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-charcoal)' }}>
                     Thoughtful Design
                   </h3>
                   <p className="body-regular">
@@ -139,7 +150,7 @@ export default function AboutPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-neutral-900 mb-2">
+                  <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-charcoal)' }}>
                     Personal Service
                   </h3>
                   <p className="body-regular">
@@ -151,20 +162,18 @@ export default function AboutPage() {
             </div>
 
             {/* Contact CTA */}
-            <div className="mt-16 pt-12 border-t border-neutral-100 text-center">
+            <div className="mt-16 pt-12 border-t text-center" style={{ borderColor: 'var(--color-stone)' }}>
               <p className="body-large mb-6">
                 Have a project in mind? We&apos;d love to hear about it.
               </p>
-              <a
-                href="/contact"
-                className="btn-primary inline-flex items-center"
-              >
+              <a href="/contact" className="btn-primary inline-flex items-center">
                 Get in Touch
               </a>
             </div>
+
           </div>
         </div>
-      </Section>
-    </>
+      </section>
+    </div>
   );
 }

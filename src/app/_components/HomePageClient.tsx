@@ -31,19 +31,19 @@ const services = [
 
 const testimonials = [
   {
-    quote: 'The craftsmanship is extraordinary. Our dining table has become the heart of our home.',
-    author: 'Sarah M.',
-    location: 'Fairfax, VA',
+    quote: 'From start to finish, The Haymarket Woodshop demonstrated exceptional craftsmanship, attention to detail, and professionalism. The materials used were top-notch, and the final product exceeded my expectations in every way.',
+    author: 'Corry R.',
+    location: '',
   },
   {
-    quote: 'I commissioned a cutting board as a wedding gift. The couple was absolutely thrilled.',
-    author: 'Michael T.',
-    location: 'Haymarket, VA',
+    quote: 'It has now been about a month since we moved the table into our apartment and we love it! We have had no issues and are overall very pleased with this one-of-a-kind piece. We have already recommended The Haymarket Woodshop to anyone who has seen it!',
+    author: 'Nicholas L.',
+    location: '',
   },
   {
-    quote: 'Professional, patient, and incredibly talented. The media console exceeded all expectations.',
-    author: 'Jennifer L.',
-    location: 'Gainesville, VA',
+    quote: "I'm incredibly pleased with the ladder bookshelf that Mujib built for me. It is exactly what I wanted for my space. It looks great and the quality is amazing! Would absolutely use The Haymarket Woodshop in the future.",
+    author: 'Delanie C.',
+    location: '',
   },
 ];
 
@@ -297,7 +297,9 @@ export function HomePageClient({ featuredProducts }: HomePageClientProps) {
                   </p>
                   <footer>
                     <p className="font-semibold" style={{ color: 'var(--color-charcoal)' }}>{testimonial.author}</p>
-                    <p className="text-sm" style={{ color: 'var(--color-stone)' }}>{testimonial.location}</p>
+                    {testimonial.location && (
+                      <p className="text-sm" style={{ color: 'var(--color-stone)' }}>{testimonial.location}</p>
+                    )}
                   </footer>
                 </motion.blockquote>
               ))}
