@@ -65,9 +65,15 @@ export function Footer() {
             <p className="text-sm text-neutral-500">
               © {new Date().getFullYear()} The Haymarket Woodshop. All rights reserved.
             </p>
-            <p className="text-sm text-neutral-500">
-              Handcrafted in Haymarket, Virginia
-            </p>
+            <div className="flex items-center gap-6">
+              <Link href="/privacy" className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
+                Terms &amp; Conditions
+              </Link>
+              <p className="text-sm text-neutral-500">Handcrafted in Haymarket, Virginia</p>
+            </div>
           </div>
         </div>
       </div>
