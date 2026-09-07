@@ -218,6 +218,91 @@ export async function deleteProduct(id: string): Promise<void> {
   const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) throw error;
 }
+/* ================================
+   INVOICES
+================================ */
+import type { DbInvoice, DbInvoiceItem, DbInvoiceWithItems } from '@/types/invoice';
+
+type InvoiceItemRow = Pick<DbInvoiceItem, 'description' | 'unit' | 'qty' | 'rate_cents' | 'sort_order'>;
+
+export async function fetchInvoices(): Promise<DbInvoice[]> {
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as DbInvoice[];
+}
+
+export async function fetchInvoiceWithItems(id: string): Promise<DbInvoiceWithItems | null> {
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*, invoice_items(*)')
+    .eq('id', id)
+    .single();
+
+  if (error) return null;
+  return data as DbInvoiceWithItems;
+}
+
+export async function createInvoiceWithItems(
+  invoiceFields: Partial<DbInvoice>,
+  items: InvoiceItemRow[]
+): Promise<DbInvoice> {
+  const { data: invoice, error } = await supabase
+    .from('invoices')
+    .insert(invoiceFields)
+    .select()
+    .single();
+  if (error) throw error;
+
+  if (items.length > 0) {
+    const rows = items.map((it) => ({ ...it, invoice_id: invoice.id }));
+    const { error: itemsError } = await supabase.from('invoice_items').insert(rows);
+    if (itemsError) throw itemsError;
+  }
+
+  return invoice as DbInvoice;
+}
+
+export async function updateInvoiceWithItems(
+  id: string,
+  invoiceFields: Partial<DbInvoice>,
+  items: InvoiceItemRow[]
+): Promise<void> {
+  const { error } = await supabase.from('invoices').update(invoiceFields).eq('id', id);
+  if (error) throw error;
+
+  // Replace all line items wholesale — simplest correct approach at this item count.
+  const { error: delError } = await supabase.from('invoice_items').delete().eq('invoice_id', id);
+  if (delError) throw delError;
+
+  if (items.length > 0) {
+    const rows = items.map((it) => ({ ...it, invoice_id: id }));
+    const { error: insError } = await supabase.from('invoice_items').insert(rows);
+    if (insError) throw insError;
+  }
+}
+
+export async function deleteInvoice(id: string): Promise<void> {
+  const { error } = await supabase.from('invoices').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchInvoiceSignature(invoiceId: string) {
+  const { data, error } = await supabase
+    .from('invoice_signatures')
+    .select('*')
+    .eq('invoice_id', invoiceId)
+    .order('signed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) return null;
+  return data;
+}
+
 export async function uploadProductImage(file: File) {
   const fileExt = file.name.split('.').pop();
   const fileName = `${crypto.randomUUID()}.${fileExt}`;

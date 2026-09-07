@@ -6,6 +6,7 @@ export { ProductCard } from './ProductCard';
 export { ProductGrid } from './ProductGrid';
 export { GalleryFilters } from './GalleryFilters';
 export { ContactForm } from './ContactForm';
+export { CustomOrderForm } from './CustomOrderForm';
 export { ImagePlaceholder } from './ImagePlaceholder';
 export { WoodDetailSection } from "./WoodDetailSection";
 export { CartDrawer } from './CartDrawer';
