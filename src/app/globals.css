@@ -82,7 +82,8 @@
 
   .link-subtle {
     @apply transition-colors duration-200;
-    color: color-mix(in srgb, var(--color-charcoal) 60%, transparent);
+    /* 65% (not 60%) so this clears WCAG AA's 4.5:1 contrast minimum on ivory */
+    color: color-mix(in srgb, var(--color-charcoal) 65%, transparent);
   }
   .link-subtle:hover { color: var(--color-charcoal); }
 

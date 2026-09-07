@@ -6,7 +6,10 @@ import { CartProvider } from '@/context/CartContext';
 import { CartDrawer } from '@/components/CartDrawer';
 import { Analytics } from '@vercel/analytics/react';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thehaymarketwoodshop.com';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: 'The Haymarket Woodshop | Handcrafted Fine Woodwork',
     template: '%s | The Haymarket Woodshop',
@@ -16,29 +19,21 @@ export const metadata: Metadata = {
   keywords: ['woodworking', 'handmade', 'cutting boards', 'furniture', 'cabinetry', 'custom woodwork', 'Haymarket'],
   authors: [{ name: 'The Haymarket Woodshop' }],
   creator: 'The Haymarket Woodshop',
+  // og:image / twitter:image are generated automatically by src/app/opengraph-image.tsx
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://haymarketwoodshop.com',
+    url: siteUrl,
     siteName: 'The Haymarket Woodshop',
     title: 'The Haymarket Woodshop | Handcrafted Fine Woodwork',
     description:
       'Premium handmade wooden goods crafted with care in Haymarket. Custom cutting boards, furniture, and cabinetry built to last generations.',
-    images: [
-      {
-        url: '/og-image.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'The Haymarket Woodshop',
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'The Haymarket Woodshop | Handcrafted Fine Woodwork',
     description:
       'Premium handmade wooden goods crafted with care in Haymarket.',
-    images: ['/og-image.jpg'],
   },
   robots: {
     index: true,

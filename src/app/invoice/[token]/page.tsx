@@ -124,7 +124,7 @@ export default function CustomerInvoicePage({ params }: { params: { token: strin
                   <Button size="lg">Pay Now — {fmtCents(invoice.total_cents)}</Button>
                 </a>
               ) : (
-                <p className="text-sm" style={{ color: 'var(--color-oak)' }}>
+                <p className="text-sm" style={{ color: 'var(--color-walnut)' }}>
                   A payment link will be sent to you shortly.
                 </p>
               )}
