@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Loader2, Copy, Check } from 'lucide-react';
-import { checkIsAdmin, fetchInvoices } from '@/lib/supabaseClient';
+import { ArrowLeft, Plus, Loader2, Copy, Check, Trash2 } from 'lucide-react';
+import { checkIsAdmin, fetchInvoices, deleteInvoice } from '@/lib/supabaseClient';
 import { fmtCents } from '@/lib/invoiceMath';
 import type { DbInvoice, InvoiceStatus } from '@/types/invoice';
 import { Button } from '@/components/Button';
@@ -38,6 +38,17 @@ export default function AdminInvoicesPage() {
     navigator.clipboard.writeText(url);
     setCopiedId(inv.id);
     setTimeout(() => setCopiedId(null), 1500);
+  }
+
+  async function handleDelete(inv: DbInvoice) {
+    const label = inv.buyer_company || inv.buyer_email || inv.invoice_no;
+    if (!confirm(`Delete invoice ${inv.invoice_no} (${label})? This can't be undone.`)) return;
+    try {
+      await deleteInvoice(inv.id);
+      setInvoices((prev) => prev.filter((i) => i.id !== inv.id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete invoice');
+    }
   }
 
   if (isLoading) {
@@ -111,6 +122,9 @@ export default function AdminInvoicesPage() {
                       <Link href={`/admin/invoices/${inv.id}`} className="link-subtle text-sm font-medium">
                         Open →
                       </Link>
+                      <button onClick={() => handleDelete(inv)} className="p-2 text-red-500 hover:text-red-700" title="Delete invoice">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
