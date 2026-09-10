@@ -124,7 +124,7 @@ export default function PrivacyPolicyPage() {
             <h2 className="heading-card text-xl mb-3">Contact Us</h2>
             <p>
               Questions about this policy or your information? Email us at{' '}
-              <a href="mailto:hello@haymarketwoodshop.com" className="link-subtle underline">hello@haymarketwoodshop.com</a>.
+              <a href="mailto:thehaymarketwoodshop@gmail.com" className="link-subtle underline">thehaymarketwoodshop@gmail.com</a>.
             </p>
           </section>
         </div>

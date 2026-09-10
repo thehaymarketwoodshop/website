@@ -23,7 +23,7 @@ const contactInfo = [
   {
     icon: Mail,
     title: 'Email',
-    content: 'hello@haymarketwoodshop.com',
+    content: 'thehaymarketwoodshop@gmail.com',
     subtext: 'We reply within 24 hours',
   },
   {
