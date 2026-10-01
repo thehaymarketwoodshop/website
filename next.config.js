@@ -33,6 +33,10 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  // Stain samples now live inside the Materials page.
+  async redirects() {
+    return [{ source: '/stain-samples', destination: '/woods#stains', permanent: true }];
+  },
   async headers() {
     return [
       {

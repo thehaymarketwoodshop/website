@@ -1,212 +1,167 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ShoppingBag } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { useCart } from '@/context/CartContext';
+import { useLenis } from '@/components/motion/SmoothScroll';
+import { brand, nav, secondaryNav, legalNav } from '@/content/site';
+import { cn } from '@/lib/utils';
 
-const navLinks = [
-  { href: '/', label: 'Home' },
-  { href: '/woods', label: 'Our Woods' },
-  { href: '/stain-samples', label: 'Stain Samples' },
-  { href: '/products', label: 'Products' },
-  { href: '/custom-order', label: 'Custom Order' },
-  { href: '/care-guide', label: 'Care Guide' },
-  { href: '/about', label: 'About' },
-  { href: '/contact', label: 'Contact' },
-];
+// Routes whose first screen is dark, so the bar starts in light type.
+const DARK_HERO_ROUTES = ['/'];
+
+function BagIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 8h14l-1.2 12H6.2z" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+    </svg>
+  );
+}
 
 export function Navbar() {
   const pathname = usePathname();
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const lenis = useLenis();
   const { itemCount, openCart } = useCart();
+  const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const lastY = useRef(0);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
+  // Transparent at the top → solid after scroll → hides going down, returns going up.
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 40);
+      setHidden(y > 240 && y > lastY.current + 2);
+      if (y < lastY.current - 2) setHidden(false);
+      lastY.current = y;
     };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => setMenuOpen(false), [pathname]);
+
+  // Menu: lock scroll, trap Escape, move focus in and back out.
   useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [pathname]);
+    if (!menuOpen) return;
+    const toggle = toggleRef.current;
+    lenis?.stop();
+    document.body.style.overflow = 'hidden';
+    menuRef.current?.querySelector<HTMLElement>('a')?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      lenis?.start();
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+      toggle?.focus();
+    };
+  }, [menuOpen, lenis]);
+
+  const onDark = DARK_HERO_ROUTES.includes(pathname) && !scrolled && !menuOpen;
+  const light = onDark || menuOpen;
 
   return (
     <>
       <header
         className={cn(
-          'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-          isScrolled
-            ? 'backdrop-blur-xl border-b shadow-sm'
-            : 'bg-transparent'
+          'fixed inset-x-0 top-0 z-50 transition-[transform,background-color,color,border-color] duration-700 ease-out-expo',
+          hidden && !menuOpen ? '-translate-y-full' : 'translate-y-0',
+          scrolled && !menuOpen ? 'border-b border-border bg-background/85 backdrop-blur-md' : 'border-b border-transparent bg-transparent',
+          light ? 'text-on-dark' : 'text-foreground',
         )}
-        style={isScrolled ? {
-          backgroundColor: 'color-mix(in srgb, var(--color-ivory) 90%, transparent)',
-          borderColor: 'var(--color-stone)',
-        } : undefined}
       >
-        <nav className="container-wide">
-          <div className="flex items-center justify-between h-16 sm:h-20">
+        <div className="container-wide flex h-[72px] items-center justify-between gap-6 lg:h-[84px]">
+          <Link href="/" className="t-label !tracking-[0.32em] font-medium" aria-label={`${brand.name} — home`}>
+            <span className="hidden sm:inline">{brand.name}</span>
+            <span className="sm:hidden">Haymarket</span>
+          </Link>
 
-            {/* Logo — links to home */}
-            <Link href="/" className="flex items-center gap-3 group flex-shrink-0" aria-label="The Haymarket Woodshop — Home">
-              <div className="relative w-[100px] h-[100px] sm:w-[125px] sm:h-[125px] transition-transform duration-200 group-hover:scale-105 -my-3">
-                <Image
-                  src="/logo.png"
-                  alt="The Haymarket Woodshop"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
-              <span
-                className="hidden sm:block text-base font-semibold tracking-tight transition-colors duration-200"
-                style={{ color: 'var(--color-charcoal)' }}
+          <nav aria-label="Primary" className="hidden items-center gap-9 lg:flex">
+            {nav.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={pathname.startsWith(l.href) ? 'page' : undefined}
+                className={cn('link-line text-[0.9rem] tracking-[0.04em]', pathname.startsWith(l.href) && 'after:!scale-x-100')}
               >
-                The Haymarket Woodshop
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={openCart}
+              className="relative flex h-11 min-w-11 items-center justify-center gap-1.5 px-2"
+              aria-label={`Open bag, ${itemCount} item${itemCount === 1 ? '' : 's'}`}
+            >
+              <BagIcon />
+              {itemCount > 0 && <span className="text-xs tabular-nums">{itemCount > 9 ? '9+' : itemCount}</span>}
+            </button>
+            <button
+              ref={toggleRef}
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-expanded={menuOpen}
+              aria-controls="site-menu"
+              className="flex h-11 items-center gap-3 pl-2 text-[0.9rem] tracking-[0.04em] lg:hidden"
+            >
+              <span>{menuOpen ? 'Close' : 'Menu'}</span>
+              <span className="relative block h-[9px] w-[22px]" aria-hidden="true">
+                <span className={cn('absolute right-0 top-0 h-px bg-current transition-all duration-500 ease-out-expo', menuOpen ? 'top-1 w-[22px] rotate-45' : 'w-[22px]')} />
+                <span className={cn('absolute bottom-0 right-0 h-px bg-current transition-all duration-500 ease-out-expo', menuOpen ? 'bottom-1 w-[22px] -rotate-45' : 'w-4')} />
               </span>
-            </Link>
-
-            {/* Desktop nav links */}
-            <div className="hidden md:flex items-center gap-1">
-              {navLinks.filter(l => l.href !== '/').map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    'px-4 py-2 text-sm font-medium rounded-full transition-all duration-200',
-                  )}
-                  style={pathname === link.href ? {
-                    backgroundColor: 'var(--color-walnut)',
-                    color: 'white',
-                  } : {
-                    color: 'color-mix(in srgb, var(--color-charcoal) 65%, transparent)',
-                  }}
-                  onMouseEnter={e => {
-                    if (pathname !== link.href) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-ivory-dark)';
-                      (e.currentTarget as HTMLElement).style.color = 'var(--color-charcoal)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (pathname !== link.href) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = '';
-                      (e.currentTarget as HTMLElement).style.color = 'color-mix(in srgb, var(--color-charcoal) 65%, transparent)';
-                    }
-                  }}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-
-            {/* Right side: cart + mobile menu */}
-            <div className="flex items-center gap-1">
-              {/* Cart */}
-              <button
-                onClick={openCart}
-                className="relative p-2 rounded-full transition-colors duration-200"
-                style={{ color: 'color-mix(in srgb, var(--color-charcoal) 65%, transparent)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-charcoal)'; (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-ivory-dark)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = ''; (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
-                aria-label="Open cart"
-              >
-                <ShoppingBag size={22} />
-                {itemCount > 0 && (
-                  <span
-                    className="absolute -top-0.5 -right-0.5 w-5 h-5 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none"
-                    style={{ backgroundColor: 'var(--color-walnut)' }}
-                  >
-                    {itemCount > 9 ? '9+' : itemCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Mobile menu toggle */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2 -mr-1 rounded-full transition-colors duration-200"
-                style={{ color: 'color-mix(in srgb, var(--color-charcoal) 65%, transparent)' }}
-                aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
-                aria-expanded={isMobileMenuOpen}
-              >
-                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
+            </button>
           </div>
-        </nav>
+        </div>
       </header>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 md:hidden"
-          >
-            <div
-              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 bottom-0 w-72 shadow-2xl"
-              style={{ backgroundColor: 'var(--color-ivory)' }}
+      {/* Full-screen mobile / tablet menu */}
+      <div
+        id="site-menu"
+        ref={menuRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Site menu"
+        hidden={!menuOpen}
+        className={cn('on-dark grain grain-dark fixed inset-0 z-40 flex-col bg-surface-alt px-[var(--gutter)] pb-10 pt-28 text-on-dark lg:hidden', menuOpen ? 'flex' : 'hidden')}
+      >
+        <nav aria-label="Menu" className="relative z-[2] flex flex-col">
+          {[...nav, ...secondaryNav].map((l, i) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="font-serif text-[clamp(2.4rem,9vw,3.6rem)] font-light leading-[1.15] opacity-0 [animation:page-in_0.8s_cubic-bezier(0.16,1,0.3,1)_forwards]"
+              style={{ animationDelay: `${80 + i * 55}ms` }}
             >
-              {/* Mobile logo */}
-              <div className="flex items-center gap-3 px-6 pt-6 pb-4" style={{ borderBottom: '1px solid var(--color-stone)' }}>
-                <div className="relative w-[70px] h-[70px]">
-                  <Image src="/logo.png" alt="The Haymarket Woodshop" fill className="object-contain" />
-                </div>
-                <span className="text-sm font-semibold" style={{ color: 'var(--color-charcoal)' }}>
-                  The Haymarket Woodshop
-                </span>
-              </div>
-
-              <div className="flex flex-col px-4 py-4">
-                {navLinks.map((link, index) => (
-                  <motion.div
-                    key={link.href}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.07 }}
-                  >
-                    <Link
-                      href={link.href}
-                      className={cn(
-                        'block px-4 py-3 my-0.5 text-base font-medium rounded-xl transition-colors duration-150',
-                      )}
-                      style={pathname === link.href ? {
-                        backgroundColor: 'var(--color-walnut)',
-                        color: 'white',
-                      } : {
-                        color: 'color-mix(in srgb, var(--color-charcoal) 70%, transparent)',
-                      }}
-                    >
-                      {link.label}
-                    </Link>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="relative z-[2] mt-auto flex flex-col gap-6 border-t border-white/15 pt-6">
+          <div className="text-[0.95rem] leading-relaxed text-on-dark-muted">
+            <p>{brand.location}</p>
+            <a href={`mailto:${brand.email}`} className="text-on-dark">
+              {brand.email}
+            </a>
+          </div>
+          <div className="flex gap-6 text-sm text-on-dark-muted">
+            {legalNav.map((l) => (
+              <Link key={l.href} href={l.href}>
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
     </>
   );
 }

@@ -1,110 +1,67 @@
 import type { Metadata } from 'next';
-import { MapPin, Mail, Clock } from 'lucide-react';
-import { Section, ContactForm } from '@/components';
+import { ContactForm } from '@/components';
+import { PageHero } from '@/components/ui/PageHero';
+import { brand } from '@/content/site';
 
 export const metadata: Metadata = {
   title: 'Contact',
-  description:
-    'Get in touch with The Haymarket Woodshop. We would love to hear about your project or answer any questions.',
+  description: 'Get in touch with The Haymarket Woodshop about a commission, a finished piece or care advice.',
   openGraph: {
     title: 'Contact | The Haymarket Woodshop',
-    description:
-      'Get in touch with The Haymarket Woodshop. We would love to hear about your project.',
+    description: 'Get in touch with The Haymarket Woodshop about a commission, a finished piece or care advice.',
   },
 };
 
-const contactInfo = [
-  {
-    icon: MapPin,
-    title: 'Location',
-    content: 'Haymarket, Virginia',
-    subtext: 'By appointment only',
-  },
-  {
-    icon: Mail,
-    title: 'Email',
-    content: 'thehaymarketwoodshop@gmail.com',
-    subtext: 'We reply within 24 hours',
-  },
-  {
-    icon: Clock,
-    title: 'Lead Times',
-    content: '2-10 weeks',
-    subtext: 'Depending on project complexity',
-  },
+const details = [
+  { label: 'Studio', value: brand.location, note: 'Made by hand in our Virginia shop' },
+  { label: 'Email', value: brand.email, note: brand.replyTime, href: `mailto:${brand.email}` },
+  { label: 'Lead times', value: '2–10 weeks', note: 'Depending on project complexity' },
 ];
 
 export default function ContactPage() {
   return (
     <>
-      {/* Hero */}
-      <section className="pt-32 sm:pt-40 pb-12 sm:pb-16 bg-gradient-to-b from-woodshop-50 to-white">
-        <div className="container-narrow text-center">
-          <h1 className="heading-display">Get in Touch</h1>
-          <p className="mt-6 body-large max-w-2xl mx-auto text-balance">
-            Have a project in mind? Questions about our work? We would love to
-            hear from you.
-          </p>
-        </div>
-      </section>
-
-      {/* Contact Content */}
-      <Section background="white" className="py-16 sm:py-24">
-        <div className="container-wide">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:gap-16">
-            {/* Contact Info */}
-            <div className="lg:col-span-2 space-y-8">
-              <div>
-                <h2 className="heading-card text-2xl mb-6">Contact Information</h2>
-                <p className="body-regular">
-                  Fill out the form and we will get back to you as soon as
-                  possible. For custom projects, please include details about
-                  what you are looking for—dimensions, wood preferences, and any
-                  inspiration images are helpful.
-                </p>
-              </div>
-
-              <div className="space-y-6">
-                {contactInfo.map((item) => (
-                  <div key={item.title} className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-woodshop-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <item.icon className="w-5 h-5 text-woodshop-700" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-neutral-900">
-                        {item.title}
-                      </h3>
-                      <p className="text-neutral-700">{item.content}</p>
-                      <p className="text-sm text-neutral-500">{item.subtext}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Additional Note */}
-              <div className="p-6 rounded-2xl" style={{ backgroundColor: 'var(--color-ivory-dark)' }}>
-                <h3 className="font-semibold text-neutral-900 mb-2">
-                  What to Expect
-                </h3>
-                <p className="text-sm text-neutral-600 leading-relaxed">
-                  After receiving your inquiry, we will schedule a consultation
-                  to discuss your project in detail. From there, we will provide
-                  a detailed quote with timeline. Once approved, we will begin
-                  crafting your piece with regular updates along the way.
-                </p>
-              </div>
+      <PageHero
+        label="Contact"
+        lines={['Tell us what', '*you have in mind.*']}
+        lede="A question about a piece, a commission or care — we would love to hear from you."
+      />
+      <section className="pb-[var(--section)]">
+        <div className="container-wide grid-12 gap-y-16">
+          <div className="col-span-4 md:col-span-8 lg:col-span-4">
+            <dl className="border-t border-border">
+              {details.map((d) => (
+                <div key={d.label} className="border-b border-border py-6">
+                  <dt className="t-label mb-3 text-muted">{d.label}</dt>
+                  <dd className="font-serif text-2xl break-words">
+                    {d.href ? (
+                      <a href={d.href} className="hover:text-accent">
+                        {d.value}
+                      </a>
+                    ) : (
+                      d.value
+                    )}
+                  </dd>
+                  <dd className="mt-1 text-sm text-muted">{d.note}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-10">
+              <h2 className="font-serif text-2xl">What to expect</h2>
+              <p className="mt-3 t-body">
+                After your inquiry we schedule a consultation to talk through the details, then send a quote with a timeline. Once approved,
+                your piece is made with regular updates along the way.
+              </p>
             </div>
-
-            {/* Contact Form */}
-            <div className="lg:col-span-3">
-              <div className="card p-8 sm:p-10">
-                <h2 className="heading-card text-2xl mb-8">Send a Message</h2>
-                <ContactForm />
-              </div>
+          </div>
+          <div className="col-span-4 md:col-span-8 lg:col-span-7 lg:col-start-6">
+            <div className="bg-surface p-[clamp(24px,4vw,56px)]">
+              <h2 className="t-h3 mb-8">Send a message</h2>
+              <ContactForm />
             </div>
           </div>
         </div>
-      </Section>
+      </section>
     </>
   );
 }

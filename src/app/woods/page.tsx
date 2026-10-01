@@ -1,186 +1,117 @@
 import type { Metadata } from 'next';
-import { WoodDetailSection } from "@/components/WoodDetailSection";
-import { Paintbrush, Shield, Layers } from 'lucide-react';
+import { PageHero } from '@/components/ui/PageHero';
+import { ParallaxImage } from '@/components/motion/ParallaxImage';
+import { StainExplorer } from '@/components/StainExplorer';
+import { MagneticButton } from '@/components/ui/MagneticButton';
+import { woods, finishes } from '@/content/site';
+import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Our Woods',
+  title: 'Materials',
   description:
-    'We work with a carefully selected range of domestic hardwoods—walnut, oak, and maple—chosen for beauty, durability, and character.',
+    'Walnut, white oak and maple — chosen for beauty, durability and character. Preview every stain sample and learn about our finishes.',
   openGraph: {
-    title: 'Our Woods | The Haymarket Woodshop',
-    description:
-      'We work with a carefully selected range of domestic hardwoods—walnut, oak, and maple—chosen for beauty, durability, and character.',
+    title: 'Materials | The Haymarket Woodshop',
+    description: 'Walnut, white oak and maple, every stain sample, and the finishes we use.',
   },
 };
-
-/* ─── Static data ────────────────────────────────────────────────────────── */
-
-const woods = [
-  {
-    title: 'Walnut',
-    description:
-      'Walnut is known for its rich, dark tones and striking grain patterns. Ranging from deep chocolate browns to warm purples, it brings depth and warmth to any space. Smooth and naturally elegant, walnut is ideal for statement pieces and heirloom-quality work.',
-    bestFor: 'Tables, desks, cabinetry, accent pieces',
-    lookAndFeel: 'Bold, warm, premium',
-    imagePath: '/placeholders/walnut.jpg',
-    imageAlt: 'Close-up of walnut wood grain',
-  },
-  {
-    title: 'Oak',
-    description:
-      'Oak is a timeless hardwood valued for its strength and distinctive grain. White oak in particular offers a lighter, more modern appearance while maintaining exceptional durability, making it well suited for everyday use without sacrificing style.',
-    bestFor: 'Dining tables, cabinetry, built-ins',
-    lookAndFeel: 'Clean, structured, enduring',
-    imagePath: '/placeholders/oak.jpg',
-    imageAlt: 'Close-up of oak wood grain',
-  },
-  {
-    title: 'Maple',
-    description:
-      'Maple features a bright, clean appearance with subtle grain and a smooth finish. Its light tone pairs well with modern and minimalist spaces, while its hardness ensures long-lasting performance.',
-    bestFor: 'Cutting boards, small goods, contemporary furniture',
-    lookAndFeel: 'Light, minimal, precise',
-    imagePath: '/placeholders/maple.jpg',
-    imageAlt: 'Close-up of maple wood grain',
-  },
-];
-
-const finishes = [
-  {
-    icon: Paintbrush,
-    title: 'Food-Safe Finish',
-    description:
-      'For any product that comes into direct contact with food, we use a food-safe, non-toxic finish. This finish protects the wood while preserving its natural color and grain, making it safe for everyday use and easy to maintain.',
-    usedFor: 'Cutting boards, charcuterie boards, serving pieces',
-  },
-  {
-    icon: Shield,
-    title: 'Matte Furniture Finish',
-    description:
-      'Our furniture is finished with a high-quality matte finish that provides durability and a clean, modern appearance. It enhances the wood\u2019s natural character while protecting against daily wear without excessive shine.',
-    usedFor: 'Tables, desks, furniture, cabinetry exteriors',
-  },
-  {
-    icon: Layers,
-    title: 'Cabinet Construction',
-    description:
-      'For cabinets, we use premium prefinished plywood for the cabinet boxes. This material offers excellent stability, a smooth surface that\u2019s ideal for paint, and a clean, professional interior finish designed to last.',
-    usedFor: 'Cabinets',
-  },
-];
-
-/* ─── Page ───────────────────────────────────────────────────────────────── */
 
 export default function WoodsPage() {
   return (
     <>
-      {/* ━━ Page Header ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="pt-32 sm:pt-40 pb-10 sm:pb-14 bg-gradient-to-b from-woodshop-50 to-white">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 text-center">
-          <h1
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-neutral-900"
-            style={{ fontFamily: 'var(--font-sf-display)', letterSpacing: '-0.025em' }}
-          >
-            Our Woods
-          </h1>
-          <p className="mt-6 text-lg sm:text-xl text-neutral-600 leading-relaxed max-w-3xl mx-auto text-balance">
-            We work with a carefully selected range of domestic hardwoods, chosen
-            for their beauty, durability, and character. Each species brings its
-            own personality—subtle or bold, modern or timeless—allowing every
-            piece to feel intentional and refined.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        label="Materials"
+        lines={['Chosen for beauty,', '*built for character.*']}
+        lede="A carefully selected range of domestic hardwoods — each with its own personality, subtle or bold, modern or timeless."
+      />
 
-      {/* ━━ Wood Sections (Walnut · Oak · Maple) ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="py-12 sm:py-16">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="divide-y divide-neutral-100">
-            {woods.map((wood) => (
-              <div
-                key={wood.title}
-                className="py-16 sm:py-20 lg:py-24 first:pt-4 first:sm:pt-8 last:pb-4 last:sm:pb-8"
-              >
-                <WoodDetailSection
-                  title={wood.title}
-                  description={wood.description}
-                  bestFor={wood.bestFor}
-                  lookAndFeel={wood.lookAndFeel}
-                  imagePath={wood.imagePath}
-                  imageAlt={wood.imageAlt}
-                />
+      {/* Species */}
+      <section aria-label="Wood species" className="pb-[var(--section)]">
+        <div className="container-wide flex flex-col gap-[clamp(80px,10vw,160px)]">
+          {woods.map((w, i) => (
+            <article key={w.name} className="grid-12 items-center gap-y-10">
+              <ParallaxImage
+                src={w.image}
+                alt={`${w.name} grain`}
+                sizes="(max-width: 767px) 100vw, 50vw"
+                className={cn('col-span-4 aspect-[4/3] md:col-span-4 lg:col-span-6', i % 2 === 1 && 'md:order-2 md:col-start-5 lg:col-start-7')}
+                reveal
+              />
+              <div className={cn('col-span-4 md:col-span-4 lg:col-span-5', i % 2 === 1 ? 'md:order-1 lg:col-start-1' : 'lg:col-start-8')}>
+                <p className="t-label mb-4 text-muted">0{i + 1}</p>
+                <h2 className="t-h2">{w.name}</h2>
+                <p className="mt-3 font-serif text-2xl italic">{w.character}</p>
+                <p className="mt-6 t-body">{w.body}</p>
+                <dl className="mt-8 border-t border-border pt-5">
+                  <dt className="t-label mb-2 text-[0.62rem] text-muted">Best for</dt>
+                  <dd>{w.bestFor}</dd>
+                </dl>
               </div>
-            ))}
-          </div>
+            </article>
+          ))}
         </div>
       </section>
 
-      {/* ━━ Custom Wood Requests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="bg-neutral-100 py-24 sm:py-32">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="max-w-3xl">
-            <h2
-              className="text-3xl sm:text-4xl font-semibold tracking-tight text-neutral-900"
-              style={{ fontFamily: 'var(--font-sf-display)' }}
-            >
-              Custom Wood Requests
+      {/* Stain samples */}
+      <section id="stains" aria-labelledby="stains-title" className="grain scroll-mt-20 bg-surface py-[var(--section)]">
+        <div className="container-wide relative z-[2]">
+          <div className="grid-12 mb-12 gap-y-6 md:mb-16">
+            <p className="t-label col-span-4 text-muted md:col-span-2 lg:col-span-3">Stain samples</p>
+            <div className="col-span-4 md:col-span-6 lg:col-span-9">
+              <h2 id="stains-title" className="t-h2">
+                See every stain <em>on real wood.</em>
+              </h2>
+              <p className="mt-6 max-w-xl t-lede">Preview how each stain looks on walnut, oak and maple before you commission.</p>
+            </div>
+          </div>
+          <StainExplorer />
+        </div>
+      </section>
+
+      {/* Finishes */}
+      <section aria-labelledby="finishes-title" className="py-[var(--section)]">
+        <div className="container-wide grid-12 gap-y-12">
+          <div className="col-span-4 md:col-span-8 lg:col-span-4">
+            <p className="t-label mb-5 text-muted">Finishes</p>
+            <h2 id="finishes-title" className="t-h2">
+              Finishes <em>&amp; construction.</em>
             </h2>
-            <p className="mt-5 text-base sm:text-lg text-neutral-600 leading-relaxed">
-              In addition to walnut, oak, and maple, we&apos;re happy to work
-              with a wide range of other hardwoods upon request. If you have a
-              specific wood species in mind, we can source the right material to
-              bring your vision to life.
-            </p>
-            <a
-              href="/contact"
-              className="inline-flex items-center justify-center mt-8 px-6 py-3 bg-neutral-900 text-white font-medium rounded-full hover:bg-neutral-800 active:bg-neutral-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2"
-            >
-              Get in Touch
-            </a>
           </div>
+          <ol className="col-span-4 md:col-span-8 lg:col-span-7 lg:col-start-6">
+            {finishes.map((f, i) => (
+              <li key={f.title} className="grid grid-cols-[3rem_1fr] gap-4 border-t border-border py-8 last:border-b">
+                <span className="font-serif text-xl italic text-accent">0{i + 1}</span>
+                <div>
+                  <h3 className="font-serif text-[1.75rem] leading-tight">{f.title}</h3>
+                  <p className="mt-3 t-body">{f.body}</p>
+                  <p className="mt-3 text-sm">
+                    <span className="text-muted">Used for · </span>
+                    {f.usedFor}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
-      {/* ━━ Finishes & Materials ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="bg-white py-24 sm:py-32">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
-          <h2
-            className="text-3xl sm:text-4xl font-semibold tracking-tight text-neutral-900 mb-14"
-            style={{ fontFamily: 'var(--font-sf-display)' }}
-          >
-            Finishes &amp; Materials
-          </h2>
-
-          <div className="space-y-10">
-            {finishes.map((finish) => (
-              <div
-                key={finish.title}
-                className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-8 sm:p-10"
-              >
-                <div className="flex items-start gap-5">
-                  <div className="w-12 h-12 bg-woodshop-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <finish.icon className="w-6 h-6 text-woodshop-700" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900">
-                      {finish.title}
-                    </h3>
-                    <p className="mt-3 text-base sm:text-lg text-neutral-600 leading-relaxed">
-                      {finish.description}
-                    </p>
-                    <div className="mt-4 flex flex-col sm:flex-row sm:items-baseline gap-1.5 sm:gap-3">
-                      <span className="text-xs font-semibold text-neutral-900 uppercase tracking-widest shrink-0">
-                        Used for
-                      </span>
-                      <span className="text-neutral-600">
-                        {finish.usedFor}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+      {/* Custom species */}
+      <section className="on-dark grain grain-dark bg-surface-alt py-[var(--section)] text-on-dark">
+        <div className="container-wide relative z-[2] grid-12 gap-y-10">
+          <div className="col-span-4 md:col-span-8 lg:col-span-7">
+            <p className="t-label mb-5 text-on-dark-muted">Custom wood requests</p>
+            <h2 className="t-h2">
+              Have another species <em>in mind?</em>
+            </h2>
+            <p className="mt-6 max-w-xl text-[1.0625rem] leading-relaxed text-on-dark-muted">
+              Beyond walnut, oak and maple, we’re happy to work with a wide range of other hardwoods on request — and can source the right
+              material for your piece.
+            </p>
+          </div>
+          <div className="col-span-4 flex items-end md:col-span-8 lg:col-span-4 lg:col-start-9 lg:justify-end">
+            <MagneticButton href="/contact" variant="light">
+              Get in touch
+            </MagneticButton>
           </div>
         </div>
       </section>

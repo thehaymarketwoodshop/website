@@ -1,26 +1,19 @@
-import Link from 'next/link';
-import { Button } from '@/components';
+import { MagneticButton } from '@/components/ui/MagneticButton';
+import { ArrowLink } from '@/components/ui/ArrowLink';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center px-6">
-        <h1 className="text-8xl font-bold text-neutral-200">404</h1>
-        <h2 className="mt-4 text-2xl font-semibold text-neutral-900">
-          Page Not Found
-        </h2>
-        <p className="mt-2 text-neutral-600 max-w-md mx-auto">
-          The page you are looking for does not exist or has been moved.
-        </p>
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/">
-            <Button>Return Home</Button>
-          </Link>
-          <Link href="/gallery">
-            <Button variant="secondary">Browse Gallery</Button>
-          </Link>
+    <section className="flex min-h-[80svh] items-center pt-32">
+      <div className="container-wide">
+        <p className="t-label mb-6 text-muted">404</p>
+        <h1 className="t-h1 max-w-[14ch]">
+          This page has <em>been planed away.</em>
+        </h1>
+        <div className="mt-12 flex flex-wrap items-center gap-8">
+          <MagneticButton href="/">Return home</MagneticButton>
+          <ArrowLink href="/products">Visit the shop</ArrowLink>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

@@ -1,5 +1,8 @@
 import type { Config } from 'tailwindcss';
 
+// Lets CSS-variable colours accept Tailwind opacity modifiers (bg-background/85).
+const v = (name: string) => `color-mix(in srgb, var(--${name}) calc(<alpha-value> * 100%), transparent)`;
+
 const config: Config = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -9,56 +12,35 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-sf-pro)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        display: ['var(--font-sf-display)', 'var(--font-sf-pro)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-sans)', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        serif: ['var(--font-serif)', 'Georgia', 'serif'],
+        display: ['var(--font-serif)', 'Georgia', 'serif'],
       },
       colors: {
-        // ── Brand palette ───────────────────────────────
+        background: v('background'),
+        foreground: v('foreground'),
+        muted: v('muted'),
+        accent: { DEFAULT: v('accent'), deep: v('accent-deep'), soft: v('accent-soft') },
+        border: v('border'),
+        surface: { DEFAULT: v('surface'), alt: v('surface-alt') },
+        'on-dark': { DEFAULT: v('on-dark'), muted: v('on-dark-muted') },
+        // Legacy names still used by the shop and invoice pages
         brand: {
-          charcoal:  '#1C1C1C',  // primary text / logo
-          ivory:     '#FAF8F5',  // background
-          walnut:    '#6B4A2D',  // accent / primary CTA
-          oak:       '#A67C52',  // secondary wood tone
-          stone:     '#CFCAC4',  // UI lines / borders
-          // Lighter tints for hover states & backgrounds
-          'walnut-light': '#8B6242',
-          'walnut-dark':  '#4E3420',
-          'ivory-dark':   '#F0EDE8',
+          charcoal: 'var(--foreground)',
+          ivory: 'var(--background)',
+          walnut: 'var(--accent)',
+          oak: '#A67C52',
+          stone: 'var(--border)',
+          'walnut-light': '#74502F',
+          'walnut-dark': 'var(--accent-deep)',
+          'ivory-dark': 'var(--surface)',
         },
-        // ── Legacy woodshop scale (kept for backward compat) ──
         woodshop: {
-          50:  '#FAF8F5',
-          100: '#F0EDE8',
-          200: '#CFCAC4',
-          300: '#B8AFA7',
-          400: '#A67C52',
-          500: '#8B6242',
-          600: '#6B4A2D',
-          700: '#4E3420',
-          800: '#3A2718',
-          900: '#1C1C1C',
-          950: '#0E0E0E',
+          50: '#F5F1EA', 100: '#EAE3D7', 200: '#D8CFC1', 300: '#B8AFA7', 400: '#A67C52',
+          500: '#74502F', 600: '#5C3D26', 700: '#3A2616', 800: '#2A1C12', 900: '#24211E', 950: '#1B1613',
         },
       },
-      animation: {
-        'fade-in': 'fadeIn 0.6s ease-out forwards',
-        'slide-up': 'slideUp 0.6s ease-out forwards',
-        'scale-in': 'scaleIn 0.4s ease-out forwards',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        slideUp: {
-          '0%': { opacity: '0', transform: 'translateY(20px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        scaleIn: {
-          '0%': { opacity: '0', transform: 'scale(0.95)' },
-          '100%': { opacity: '1', transform: 'scale(1)' },
-        },
-      },
+      transitionTimingFunction: { 'out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)' },
     },
   },
   plugins: [],

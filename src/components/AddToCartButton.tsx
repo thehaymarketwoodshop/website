@@ -45,10 +45,10 @@ export function AddToCartButton({ variants, compact = false }: AddToCartButtonPr
               onClick={() => setSelectedVariantId(v.id)}
               disabled={!v.availableForSale}
               className={[
-                'px-4 py-2 text-sm font-medium rounded-full border transition-all',
+                'min-h-[40px] px-4 text-sm rounded-full border transition-all',
                 selectedVariantId === v.id
                   ? 'bg-brand-walnut text-white border-brand-walnut'
-                  : 'bg-brand-ivory text-neutral-700 border-neutral-300 hover:border-brand-walnut',
+                  : 'bg-transparent text-muted border-border hover:border-foreground',
                 !v.availableForSale ? 'opacity-40 cursor-not-allowed line-through' : '',
               ].join(' ')}
             >
@@ -64,29 +64,29 @@ export function AddToCartButton({ variants, compact = false }: AddToCartButtonPr
           onClick={handleAdd}
           disabled={isAdding || justAdded}
           className={[
-            'flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200',
+            'flex min-h-[48px] items-center justify-center gap-2 font-normal tracking-[0.06em] rounded-full transition-colors duration-300',
             compact
               ? 'w-full px-4 py-2.5 text-sm'
               : 'w-full px-6 py-3.5 text-sm',
             justAdded
-              ? 'bg-emerald-600 text-white'
-              : 'bg-brand-walnut text-white hover:bg-brand-walnut-light',
+              ? 'bg-accent-deep text-on-dark'
+              : 'bg-foreground text-background hover:bg-accent',
             (isAdding || justAdded) ? 'cursor-not-allowed' : '',
           ].join(' ')}
         >
           {isAdding ? (
             <><Loader2 size={compact ? 14 : 16} className="animate-spin" /> Adding…</>
           ) : justAdded ? (
-            <><Check size={compact ? 14 : 16} /> Added!</>
+            <><Check size={compact ? 14 : 16} /> Added to bag</>
           ) : (
-            <><ShoppingBag size={compact ? 14 : 16} /> Add to Cart</>
+            <><ShoppingBag size={compact ? 14 : 16} /> Add to bag</>
           )}
         </button>
       ) : (
         <button
           disabled
           className={[
-            'flex items-center justify-center w-full font-medium rounded-full bg-neutral-100 text-neutral-400 cursor-not-allowed',
+            'flex min-h-[48px] items-center justify-center w-full tracking-[0.06em] rounded-full border border-border text-muted cursor-not-allowed',
             compact ? 'px-4 py-2.5 text-sm' : 'px-6 py-3.5 text-sm',
           ].join(' ')}
         >

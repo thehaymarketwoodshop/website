@@ -1,79 +1,54 @@
 import Link from 'next/link';
-
-const footerLinks = {
-  company: [
-    { href: '/about', label: 'About' },
-    { href: '/contact', label: 'Contact' },
-  ],
-};
+import { brand, nav, secondaryNav, legalNav } from '@/content/site';
 
 export function Footer() {
   return (
-    <footer className="border-t" style={{ backgroundColor: 'var(--color-ivory-dark)', borderColor: 'var(--color-stone)' }}>
-      <div className="container-wide py-16 sm:py-20">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
-          {/* Brand Column */}
-          <div className="md:col-span-2">
-            <Link
-              href="/"
-              className="text-xl font-semibold tracking-tight text-neutral-900"
-            >
-              The Haymarket Woodshop
-            </Link>
-            <p className="mt-4 text-neutral-600 max-w-sm leading-relaxed">
-              Handcrafted wooden goods made with care and attention to detail.
-              Each piece is built to become a cherished part of your home.
+    <footer className="bg-background pt-24 sm:pt-32">
+      <div className="container-wide">
+        <div className="grid-12 gap-y-14">
+          <div className="col-span-4 md:col-span-8 lg:col-span-6">
+            <p className="font-serif text-[clamp(2.75rem,6vw,5.5rem)] font-light leading-[0.95] tracking-[-0.02em]">
+              The Haymarket
+              <br />
+              <em>Woodshop</em>
+            </p>
+            <p className="mt-6 max-w-sm t-body">
+              Custom furniture, cabinetry and kitchen goods, made by hand in solid hardwood.
             </p>
           </div>
 
-          {/* Shop Link */}
-          <div>
-            <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
-              Shop
-            </h3>
-            <Link
-              href="/products"
-              className="text-neutral-600 hover:text-neutral-900 transition-colors"
-            >
-              Products
-            </Link>
-          </div>
-
-          {/* Company Links */}
-          <div>
-            <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider mb-4">
-              Company
-            </h3>
-            <ul className="space-y-3">
-              {footerLinks.company.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                  >
-                    {link.label}
+          <nav aria-label="Footer" className="col-span-2 md:col-span-3 lg:col-span-2">
+            <p className="t-label mb-5 text-muted">Explore</p>
+            <ul className="space-y-1">
+              {[...nav, ...secondaryNav].map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className="link-line text-[0.95rem]">
+                    {l.label}
                   </Link>
                 </li>
               ))}
             </ul>
+          </nav>
+
+          <div className="col-span-2 md:col-span-3 lg:col-span-3 lg:col-start-10">
+            <p className="t-label mb-5 text-muted">Studio</p>
+            <address className="space-y-2 text-[0.95rem] not-italic leading-relaxed">
+              <p>{brand.location}</p>
+              <a href={`mailto:${brand.email}`} className="link-line text-[0.9rem] [overflow-wrap:anywhere]">
+                {brand.email}
+              </a>
+            </address>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="mt-16 pt-8 border-t border-neutral-200">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-neutral-500">
-              © {new Date().getFullYear()} The Haymarket Woodshop. All rights reserved.
-            </p>
-            <div className="flex items-center gap-6">
-              <Link href="/privacy" className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
-                Privacy Policy
+        <div className="mt-24 flex flex-col gap-4 border-t border-border py-8 text-[0.8125rem] text-muted sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} {brand.name}. Handcrafted in {brand.location}.</p>
+          <div className="flex gap-6">
+            {legalNav.map((l) => (
+              <Link key={l.href} href={l.href} className="link-subtle">
+                {l.label}
               </Link>
-              <Link href="/terms" className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
-                Terms &amp; Conditions
-              </Link>
-              <p className="text-sm text-neutral-500">Handcrafted in Haymarket, Virginia</p>
-            </div>
+            ))}
           </div>
         </div>
       </div>

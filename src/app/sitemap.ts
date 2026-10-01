@@ -10,7 +10,6 @@ const staticRoutes = [
   '/custom-order',
   '/care-guide',
   '/woods',
-  '/stain-samples',
   '/gallery',
   '/contact',
 ];
