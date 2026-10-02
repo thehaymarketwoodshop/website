@@ -197,7 +197,10 @@ export const builtIn: SceneDef = {
     );
     const back = phase(p, 0.48, 0.6);
     const warm = phase(p, 0.84, 0.97);
-    faces.push(...box({ at: [-1.2, 0.1, unitZ], size: [BW, BH - 0.2, 0.012], tex: 'walnut-dark', tile: 1.2, grain: 'y', offset: [0, 0, zOff - 0.5 * (1 - back)], opacity: back, glow: 0.2 * warm }));
+    // the back panel sits behind every shelf and upright, so it is always painted first
+    faces.push(
+      ...box({ at: [-1.2, 0.1, unitZ], size: [BW, BH - 0.2, 0.012], tex: 'walnut-dark', tile: 1.2, grain: 'y', offset: [0, 0, zOff - 0.5 * (1 - back)], opacity: back, glow: 0.2 * warm }).map((f) => ({ ...f, layer: -0.5 })),
+    );
 
     // shelves drop in, bay by bay
     BAYS.forEach((bx, b) =>
