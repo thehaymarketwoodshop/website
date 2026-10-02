@@ -36,6 +36,8 @@ export const legalNav = [
   { href: '/terms', label: 'Terms' },
 ];
 
+import type { SceneName } from '@/components/scenes/scenes';
+
 export type Discipline = {
   slug: string;
   index: string;
@@ -49,6 +51,9 @@ export type Discipline = {
   imagePosition?: string;
   tone: 'espresso' | 'bone' | 'ivory';
   layout: 'bleed' | 'split' | 'split-reverse';
+  /** animated 3D scene shown instead of the image */
+  scene?: SceneName;
+  sceneLabel?: string;
   cta: { href: string; label: string };
 };
 
@@ -65,8 +70,10 @@ export const disciplines: Discipline[] = [
     ],
     image: '/media/grain-walnut.jpg',
     imageAlt: 'Close study of walnut grain',
-    tone: 'espresso',
-    layout: 'bleed',
+    tone: 'bone',
+    layout: 'split',
+    scene: 'dining',
+    sceneLabel: 'Animation of a live-edge walnut dining table on V-shaped bases being assembled and oiled',
     cta: { href: '/custom-order', label: 'Commission a table' },
   },
   {
@@ -81,8 +88,10 @@ export const disciplines: Discipline[] = [
     ],
     image: '/media/grain-oak.jpg',
     imageAlt: 'Close study of white oak grain',
-    tone: 'bone',
+    tone: 'espresso',
     layout: 'split',
+    scene: 'cabinetry',
+    sceneLabel: 'Animation of white oak base cabinets whose doors open and drawers slide out, then close',
     cta: { href: '/custom-order', label: 'Request a quote' },
   },
   {
@@ -97,8 +106,10 @@ export const disciplines: Discipline[] = [
     ],
     image: '/media/grain-walnut-dark.jpg',
     imageAlt: 'Close study of dark walnut grain',
-    tone: 'espresso',
+    tone: 'ivory',
     layout: 'split-reverse',
+    scene: 'builtIn',
+    sceneLabel: 'Animation of a walnut built-in bookcase being assembled, installed against the wall and lit',
     cta: { href: '/custom-order', label: 'Start a built-in' },
   },
   {
@@ -113,7 +124,7 @@ export const disciplines: Discipline[] = [
     ],
     image: '/media/grain-maple.jpg',
     imageAlt: 'Close study of maple grain',
-    tone: 'ivory',
+    tone: 'espresso',
     layout: 'split',
     cta: { href: '/custom-order', label: 'Start a custom order' },
   },
@@ -130,7 +141,7 @@ export const disciplines: Discipline[] = [
     image: '/media/board-photo.webp',
     imageAlt: 'Striped walnut and maple edge-grain cutting board on the bench',
     imagePosition: '50% 62%',
-    tone: 'espresso',
+    tone: 'bone',
     layout: 'split-reverse',
     cta: { href: '/products', label: 'Shop boards' },
   },

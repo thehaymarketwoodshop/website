@@ -1,12 +1,13 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import { gsap, prefersReducedMotion } from '@/lib/gsap';
 import { disciplines, Discipline } from '@/content/site';
 import { ArrowLink } from '@/components/ui/ArrowLink';
 import { RevealText } from '@/components/motion/RevealText';
 import { cn } from '@/lib/utils';
+import { SceneCanvas } from '@/components/scenes/SceneCanvas';
 
 const TONES: Record<Discipline['tone'], string> = {
   espresso: 'on-dark bg-surface-alt text-on-dark grain grain-dark',
@@ -70,7 +71,7 @@ function Panel({ d, i }: { d: Discipline; i: number }) {
             </div>
           </>
         ) : (
-          <div className="grid h-full grid-rows-[38%_1fr] md:grid-cols-12 md:grid-rows-1">
+          <div className={cn('grid h-full md:grid-cols-12 md:grid-rows-1', d.scene ? 'grid-rows-[54%_1fr]' : 'grid-rows-[38%_1fr]')}>
             <div
               data-panel-media=""
               className={cn(
@@ -78,15 +79,28 @@ function Panel({ d, i }: { d: Discipline; i: number }) {
                 d.layout === 'split-reverse' && 'md:order-2 md:col-start-6',
               )}
             >
-              <Image src={d.image} alt={d.imageAlt} fill sizes={sizes} className="object-cover" style={{ objectPosition: d.imagePosition }} />
+              {d.scene ? (
+                <SceneCanvas name={d.scene} label={d.sceneLabel ?? d.title} />
+              ) : (
+                <Image src={d.image} alt={d.imageAlt} fill sizes={sizes} className="object-cover" style={{ objectPosition: d.imagePosition }} />
+              )}
             </div>
             <div
               className={cn(
-                'relative z-[2] flex flex-col justify-center px-[var(--gutter)] py-8 md:col-span-5 md:py-24',
+                'relative z-[2] flex flex-col px-[var(--gutter)] md:col-span-5 md:justify-center md:py-24',
+                d.scene ? 'justify-start pt-0 pb-8' : 'justify-center py-8',
                 d.layout === 'split-reverse' ? 'md:order-1 md:pr-12' : 'md:pl-12 lg:pl-16',
               )}
             >
               <Copy d={d} dark={dark} />
+            </div>
+          </div>
+        )}
+        {d.scene && (
+          <div className="absolute bottom-6 right-[var(--gutter)] z-[3] hidden w-[min(300px,36%)] md:block" aria-hidden="true">
+            <p data-readout-step="" className={cn('t-label mb-2 text-[0.62rem]', dark ? 'text-on-dark-muted' : 'text-muted')}>&nbsp;</p>
+            <div className={cn('h-px w-full', dark ? 'bg-white/15' : 'bg-border')}>
+              <div data-readout-bar="" className={cn('h-px origin-left scale-x-0', dark ? 'bg-accent-soft' : 'bg-accent')} />
             </div>
           </div>
         )}
@@ -110,8 +124,8 @@ export function DisciplineStack() {
         const inner = panel.querySelector('[data-panel-inner]');
         const media = panel.querySelector('[data-panel-media]');
         const shade = panel.querySelector('[data-panel-shade]');
-        // image eases from 1.12 to 1 as the panel arrives
-        if (media) {
+        // image eases from 1.12 to 1 as the panel arrives (scenes animate themselves)
+        if (media && !media.querySelector('svg')) {
           gsap.fromTo(media, { scale: 1.12 }, { scale: 1, ease: 'none', scrollTrigger: { trigger: panel, start: 'top bottom', end: 'top top', scrub: true } });
         }
         const next = panels[i + 1];
@@ -136,7 +150,16 @@ export function DisciplineStack() {
       </div>
       <div>
         {disciplines.map((d, i) => (
-          <Panel key={d.slug} d={d} i={i} />
+          <Fragment key={d.slug}>
+            <Panel d={d} i={i} />
+            {/* hold: keeps each panel on screen a while before the next slides over —
+                longer for animated pieces so the build plays out and then rests */}
+            <div
+              data-hold=""
+              aria-hidden="true"
+              className={cn('hidden [.js-motion_&]:block', d.scene ? 'h-[150svh] md:h-[200svh]' : 'h-[60svh] md:h-[80svh]')}
+            />
+          </Fragment>
         ))}
       </div>
     </section>
