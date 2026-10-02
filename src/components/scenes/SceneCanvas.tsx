@@ -2,15 +2,10 @@
 
 import { useEffect, useRef } from 'react';
 import { gsap, prefersReducedMotion } from '@/lib/gsap';
-import { Renderer } from './engine';
+import { Renderer, bounds } from './engine';
 import { SCENES, SceneName, SceneEnv } from './scenes';
 import { cn } from '@/lib/utils';
 
-/**
- * Draws one furniture scene and plays it with the scroll. The animation runs
- * while the panel slides in and through the hold spacer that follows it, so
- * the panel stays on screen until the piece is finished.
- */
 // Room colours per panel tone, a shade off the panel so the room reads without a hard box.
 const ROOMS: Record<'ivory' | 'bone' | 'espresso', SceneEnv> = {
   ivory: { wall: '#f0ebe3', floor: '#e8e1d6' },
@@ -22,10 +17,20 @@ type Props = {
   name: SceneName;
   label: string;
   tone: keyof typeof ROOMS;
-  /** side of the canvas that meets the text column; a room fades out there */
+  /** side of the canvas that meets the text column; a room fades out there (desktop only) */
   fade: 'left' | 'right';
 };
 
+const DESKTOP_VIEWBOX = '0 0 1000 700';
+
+/**
+ * Draws one furniture scene and plays it with the scroll. The animation runs
+ * while the panel slides in and through the hold spacer that follows it, and
+ * finishes early so the completed piece rests on screen.
+ *
+ * On phones the camera holds still at its final angle and the view is fitted
+ * tightly to the piece, so it fills the space and only moving parts redraw.
+ */
 export function SceneCanvas({ name, label, tone, fade }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const shadow = useRef<SVGEllipseElement>(null);
@@ -34,20 +39,35 @@ export function SceneCanvas({ name, label, tone, fade }: Props) {
     const el = svg.current;
     if (!el) return;
     const scene = SCENES[name];
+    const env = ROOMS[tone];
     const r = new Renderer(el);
     const panel = el.closest('[data-panel]');
-    const step = panel?.querySelector<HTMLElement>('[data-readout-step]');
-    const bar = panel?.querySelector<HTMLElement>('[data-readout-bar]');
+    const steps = panel ? Array.from(panel.querySelectorAll<HTMLElement>('[data-readout-step]')) : [];
+    const bars = panel ? Array.from(panel.querySelectorAll<HTMLElement>('[data-readout-bar]')) : [];
+    const compact = window.matchMedia('(max-width: 767px)').matches;
 
+    // Phones: lock the camera to the finished view and frame the piece tightly.
+    const finalFrame = scene.build(1, env);
+    if (compact) {
+      const [x0, y0, x1, y1] = bounds(finalFrame.faces, finalFrame.cam);
+      const pad = Math.max(x1 - x0, y1 - y0) * 0.1;
+      el.setAttribute('viewBox', `${(x0 - pad).toFixed(0)} ${(y0 - pad).toFixed(0)} ${(x1 - x0 + 2 * pad).toFixed(0)} ${(y1 - y0 + 2 * pad).toFixed(0)}`);
+    } else {
+      el.setAttribute('viewBox', DESKTOP_VIEWBOX);
+    }
+
+    let lastStep = '';
     const render = (p: number) => {
-      const frame = scene.build(p, ROOMS[tone]);
-      if (frame.shadow && shadow.current) r.shadow(shadow.current, frame.shadow.center, frame.shadow.rx, frame.shadow.rz, frame.cam, frame.shadow.strength);
-      r.draw(frame.faces, frame.cam);
-      if (bar) bar.style.transform = `scaleX(${p})`;
-      if (step) {
-        let k = 0;
-        scene.stepAt.forEach((at, i) => p >= at && (k = i));
-        if (step.textContent !== scene.steps[k]) step.textContent = scene.steps[k];
+      const frame = scene.build(p, env);
+      const cam = compact ? finalFrame.cam : frame.cam;
+      if (frame.shadow && shadow.current) r.shadow(shadow.current, frame.shadow.center, frame.shadow.rx, frame.shadow.rz, cam, frame.shadow.strength);
+      r.draw(frame.faces, cam);
+      bars.forEach((b) => (b.style.transform = `scaleX(${p.toFixed(3)})`));
+      let k = 0;
+      scene.stepAt.forEach((at, i) => p >= at && (k = i));
+      if (scene.steps[k] !== lastStep) {
+        lastStep = scene.steps[k];
+        steps.forEach((s) => (s.textContent = lastStep));
       }
     };
 
@@ -80,13 +100,15 @@ export function SceneCanvas({ name, label, tone, fade }: Props) {
   return (
     <svg
       ref={svg}
-      viewBox="0 0 1000 700"
+      viewBox={DESKTOP_VIEWBOX}
       preserveAspectRatio="xMidYMid meet"
       className={cn(
-        'absolute inset-0 h-full w-full',
-        // soften the room's edge where it meets the text column
-        SCENES[name].room && fade === 'left' && '[mask-image:linear-gradient(to_right,transparent,black_22%)]',
-        SCENES[name].room && fade === 'right' && '[mask-image:linear-gradient(to_left,transparent,black_22%)]',
+        'absolute inset-x-0 top-0 bottom-9 h-[calc(100%-2.25rem)] w-full md:bottom-0 md:h-full',
+        // phones: rooms fade out top and bottom instead of ending in a hard edge
+        SCENES[name].room && 'max-md:[-webkit-mask-image:linear-gradient(to_bottom,transparent,black_14%,black_86%,transparent)] max-md:[mask-image:linear-gradient(to_bottom,transparent,black_14%,black_86%,transparent)]',
+        // soften the room's edge where it meets the text column (side-by-side layouts only)
+        SCENES[name].room && fade === 'left' && 'md:[-webkit-mask-image:linear-gradient(to_right,transparent,black_22%)] md:[mask-image:linear-gradient(to_right,transparent,black_22%)]',
+        SCENES[name].room && fade === 'right' && 'md:[-webkit-mask-image:linear-gradient(to_left,transparent,black_22%)] md:[mask-image:linear-gradient(to_left,transparent,black_22%)]',
       )}
       role="img"
       aria-label={label}

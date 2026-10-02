@@ -159,6 +159,23 @@ function viewNormalZ(n: V3, cam: Camera) {
   return n[1] * Math.sin(cam.pitch) + z1 * Math.cos(cam.pitch);
 }
 
+/** Screen-space bounds of the solid (non-room) faces of a frame. */
+export function bounds(faces: Face[], cam: Camera): [number, number, number, number] {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const f of faces) {
+    // frame the solid pieces only: skip the room and faint light/glow layers
+    if (f.bg || (f.opacity ?? 1) <= 0.01 || (f.tex === 'none' && (f.opacity ?? 1) < 0.7)) continue;
+    for (const p of f.pts) {
+      const [x, y] = project(p, cam);
+      if (x < x0) x0 = x;
+      if (y < y0) y0 = y;
+      if (x > x1) x1 = x;
+      if (y > y1) y1 = y;
+    }
+  }
+  return [x0, y0, x1, y1];
+}
+
 const NS = 'http://www.w3.org/2000/svg';
 
 /** Owns the SVG nodes for one scene and redraws them from a list of faces. */
@@ -200,76 +217,90 @@ export class Renderer {
     return this.pool[i];
   }
 
-  draw(faces: Face[], cam: Camera) {
-    const visible = faces
-      .filter((f) => (f.opacity ?? 1) > 0.01 && viewNormalZ(f.normal, cam) > 0.0001)
-      .map((f) => {
-        const pr = f.pts.map((p) => project(p, cam));
-        const depth = pr.reduce((s, p) => s + p[2], 0) / pr.length;
-        return { f, pr, depth };
-      })
-      .sort((a, b) => {
-        const la = a.f.bg ? -1 : a.f.layer ?? 0;
-        const lb = b.f.bg ? -1 : b.f.layer ?? 0;
-        return la !== lb ? la - lb : a.depth - b.depth;
-      });
+  private cache: Record<string, string>[] = [];
+  private order = '';
 
-    // reorder DOM only when needed: append in paint order
-    visible.forEach(({ f, pr }, i) => {
+  /** set an attribute only when its value changed since the last frame */
+  private put(i: number, el: Element, key: string, attr: string, value: string) {
+    const c = (this.cache[i] ??= {});
+    if (c[key] === value) return;
+    c[key] = value;
+    el.setAttribute(attr, value);
+  }
+
+  /**
+   * Draw a frame. Each face keeps its own SVG nodes (keyed by its index in
+   * `faces`, which scenes keep stable), values are only written when they
+   * change, and the paint order is only rebuilt when it actually changes —
+   * so pieces that are standing still cost almost nothing per frame.
+   */
+  draw(faces: Face[], cam: Camera) {
+    const items: { i: number; key: number; depth: number }[] = [];
+    faces.forEach((f, i) => {
       const s = this.slot(i);
+      const op = f.opacity ?? 1;
+      if (op <= 0.01 || viewNormalZ(f.normal, cam) <= 0.0001) {
+        this.put(i, s.tex, 'vis', 'display', 'none');
+        this.put(i, s.shade, 'vis2', 'display', 'none');
+        this.put(i, s.fx, 'vis3', 'display', 'none');
+        return;
+      }
+      this.put(i, s.tex, 'vis', 'display', 'inline');
+      this.put(i, s.shade, 'vis2', 'display', 'inline');
+      this.put(i, s.fx, 'vis3', 'display', 'inline');
+
+      const pr = f.pts.map((p) => project(p, cam));
+      const depth = pr.reduce((sum, p) => sum + p[2], 0) / pr.length;
+      items.push({ i, key: f.bg ? -1 : f.layer ?? 0, depth });
       const d = 'M' + pr.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('L') + 'Z';
-      const op = String(f.opacity ?? 1);
+      const ops = op.toFixed(3);
 
       if (f.tex === 'none') {
-        s.tex.setAttribute('fill', f.color);
+        this.put(i, s.tex, 'fill', 'fill', f.color);
       } else {
         // affine map of one texture tile onto the face
         const o = project(f.origin, cam);
         const pu = project(add(f.origin, mul(f.u, f.tile)), cam);
         const pv = project(add(f.origin, mul(f.v, f.tile / TEX_ASPECT)), cam);
-        s.pat.setAttribute('patternTransform', `matrix(${pu[0] - o[0]} ${pu[1] - o[1]} ${pv[0] - o[0]} ${pv[1] - o[1]} ${o[0]} ${o[1]})`);
-        const href = TEX_URL[f.tex];
-        if (s.img.getAttribute('href') !== href) s.img.setAttribute('href', href);
-        s.tex.setAttribute('fill', `url(#${s.pat.id})`);
+        const m = [pu[0] - o[0], pu[1] - o[1], pv[0] - o[0], pv[1] - o[1], o[0], o[1]].map((n) => n.toFixed(2)).join(' ');
+        this.put(i, s.pat, 'pt', 'patternTransform', `matrix(${m})`);
+        this.put(i, s.img, 'href', 'href', TEX_URL[f.tex]);
+        this.put(i, s.tex, 'fill', 'fill', `url(#${s.pat.id})`);
       }
-      s.tex.setAttribute('d', d);
-      s.tex.setAttribute('opacity', op);
-      s.tex.setAttribute('stroke', f.bg ? 'none' : 'rgba(30,18,10,0.35)');
-      s.tex.setAttribute('stroke-width', '0.6');
+      this.put(i, s.tex, 'd', 'd', d);
+      this.put(i, s.tex, 'op', 'opacity', ops);
+      this.put(i, s.tex, 'stroke', 'stroke', f.bg ? 'none' : 'rgba(30,18,10,0.35)');
+      this.put(i, s.tex, 'sw', 'stroke-width', '0.6');
 
-      // light: darker when facing away from the key light; plywood/raw get a pale wash
+      // light: darker when facing away from the key light
       const lit = 0.55 + 0.45 * Math.max(0, dot(norm(f.normal), LIGHT));
-      s.shade.setAttribute('d', d);
-      s.shade.setAttribute('fill', '#140a04');
-      s.shade.setAttribute('opacity', f.bg ? '0' : String((1 - lit) * 0.85 * (f.opacity ?? 1)));
+      this.put(i, s.shade, 'd2', 'd', d);
+      this.put(i, s.shade, 'fill2', 'fill', '#140a04');
+      this.put(i, s.shade, 'op2', 'opacity', f.bg ? '0' : ((1 - lit) * 0.85 * op).toFixed(3));
 
+      // plywood/raw get a pale wash, finish a sheen, lights a warm glow
       const raw = (f.raw ?? 0) + (f.tex === 'ply' ? 0.35 : 0);
       const glow = f.glow ?? 0;
       const sheen = f.sheen ?? 0;
-      s.fx.setAttribute('d', d);
-      if (glow > 0) {
-        s.fx.setAttribute('fill', '#ffd9a0');
-        s.fx.setAttribute('opacity', String(glow * (f.opacity ?? 1)));
-      } else if (raw > 0) {
-        s.fx.setAttribute('fill', '#f3e7d3');
-        s.fx.setAttribute('opacity', String(Math.min(0.75, raw) * (f.opacity ?? 1)));
-      } else if (sheen > 0) {
-        s.fx.setAttribute('fill', '#fff4e6');
-        s.fx.setAttribute('opacity', String(sheen * 0.16 * (f.opacity ?? 1)));
-      } else {
-        s.fx.setAttribute('opacity', '0');
-      }
-
-      // keep paint order: move to the end in sorted order
-      this.layer.append(s.tex, s.shade, s.fx);
+      let fill = '#000', fop = 0;
+      if (glow > 0) [fill, fop] = ['#ffd9a0', glow * op];
+      else if (raw > 0) [fill, fop] = ['#f3e7d3', Math.min(0.75, raw) * op];
+      else if (sheen > 0) [fill, fop] = ['#fff4e6', sheen * 0.16 * op];
+      this.put(i, s.fx, 'd3', 'd', fop > 0.002 ? d : '');
+      this.put(i, s.fx, 'fill3', 'fill', fill);
+      this.put(i, s.fx, 'op3', 'opacity', fop.toFixed(3));
     });
 
-    // hide unused slots
-    for (let i = visible.length; i < this.pool.length; i++) {
-      const s = this.pool[i];
-      s.tex.setAttribute('d', '');
-      s.shade.setAttribute('d', '');
-      s.fx.setAttribute('d', '');
+    items.sort((a, b) => (a.key !== b.key ? a.key - b.key : a.depth - b.depth));
+    const order = items.map((it) => it.i).join(',');
+    if (order !== this.order) {
+      this.order = order;
+      const frag = document.createDocumentFragment();
+      items.forEach(({ i }) => {
+        const s = this.pool[i];
+        frag.append(s.tex, s.shade, s.fx);
+      });
+      this.layer.append(frag);
     }
   }
 

@@ -56,7 +56,15 @@ function Panel({ d, i }: { d: Discipline; i: number }) {
       className="sticky top-0 h-[100svh] overflow-hidden"
       style={{ zIndex: i + 1 }}
     >
-      <div data-panel-inner="" className={cn('relative h-full w-full origin-top overflow-hidden', TONES[d.tone])}>
+      <div
+        data-panel-inner=""
+        className={cn(
+          'relative h-full w-full origin-top overflow-hidden',
+          // animated panels skip the blended grain overlay: it forces a full-screen
+          // recomposite on every animation frame, which phones can't keep up with
+          d.scene ? TONES[d.tone].replace(/\bgrain(-dark)?\b/g, '') : TONES[d.tone],
+        )}
+      >
 
         {d.layout === 'bleed' ? (
           <>
@@ -71,16 +79,26 @@ function Panel({ d, i }: { d: Discipline; i: number }) {
             </div>
           </>
         ) : (
-          <div className={cn('grid h-full md:grid-cols-12 md:grid-rows-1', d.scene ? 'grid-rows-[54%_1fr]' : 'grid-rows-[38%_1fr]')}>
+          <div className={cn('h-full md:grid md:grid-cols-12 md:grid-rows-1', d.scene ? 'flex flex-col justify-center pt-16' : 'grid grid-rows-[38%_1fr]')}>
             <div
               data-panel-media=""
               className={cn(
                 'relative overflow-hidden md:col-span-7 md:h-full',
+                d.scene && 'h-[42svh] shrink-0',
                 d.layout === 'split-reverse' && 'md:order-2 md:col-start-6',
               )}
             >
               {d.scene ? (
-                <SceneCanvas name={d.scene} label={d.sceneLabel ?? d.title} tone={d.tone} fade={d.layout === 'split-reverse' ? 'left' : 'right'} />
+                <>
+                  <SceneCanvas name={d.scene} label={d.sceneLabel ?? d.title} tone={d.tone} fade={d.layout === 'split-reverse' ? 'left' : 'right'} />
+                  {/* phone readout, under the piece */}
+                  <div className="absolute inset-x-[var(--gutter)] bottom-2 z-[2] md:hidden" aria-hidden="true">
+                    <p data-readout-step="" className={cn('t-label mb-1.5 text-[0.6rem]', dark ? 'text-on-dark-muted' : 'text-muted')}>&nbsp;</p>
+                    <div className={cn('h-px w-full', dark ? 'bg-white/15' : 'bg-border')}>
+                      <div data-readout-bar="" className={cn('h-px origin-left scale-x-0', dark ? 'bg-accent-soft' : 'bg-accent')} />
+                    </div>
+                  </div>
+                </>
               ) : (
                 <Image src={d.image} alt={d.imageAlt} fill sizes={sizes} className="object-cover" style={{ objectPosition: d.imagePosition }} />
               )}
@@ -88,7 +106,7 @@ function Panel({ d, i }: { d: Discipline; i: number }) {
             <div
               className={cn(
                 'relative z-[2] flex flex-col px-[var(--gutter)] md:col-span-5 md:justify-center md:py-24',
-                d.scene ? 'justify-start pt-0 pb-8' : 'justify-center py-8',
+                d.scene ? 'justify-start pb-4 pt-6' : 'justify-center py-8',
                 d.layout === 'split-reverse' ? 'md:order-1 md:pr-12' : 'md:pl-12 lg:pl-16',
               )}
             >
