@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { gsap, prefersReducedMotion } from '@/lib/gsap';
 import { Renderer } from './engine';
-import { SCENES, SceneName } from './scenes';
+import { SCENES, SceneName, SceneEnv } from './scenes';
 import { cn } from '@/lib/utils';
 
 /**
@@ -11,7 +11,22 @@ import { cn } from '@/lib/utils';
  * while the panel slides in and through the hold spacer that follows it, so
  * the panel stays on screen until the piece is finished.
  */
-export function SceneCanvas({ name, label }: { name: SceneName; label: string }) {
+// Room colours per panel tone, a shade off the panel so the room reads without a hard box.
+const ROOMS: Record<'ivory' | 'bone' | 'espresso', SceneEnv> = {
+  ivory: { wall: '#f0ebe3', floor: '#e8e1d6' },
+  bone: { wall: '#e6dfd3', floor: '#ddd4c6' },
+  espresso: { wall: '#241d18', floor: '#1d1713' },
+};
+
+type Props = {
+  name: SceneName;
+  label: string;
+  tone: keyof typeof ROOMS;
+  /** side of the canvas that meets the text column; a room fades out there */
+  fade: 'left' | 'right';
+};
+
+export function SceneCanvas({ name, label, tone, fade }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const shadow = useRef<SVGEllipseElement>(null);
 
@@ -25,7 +40,7 @@ export function SceneCanvas({ name, label }: { name: SceneName; label: string })
     const bar = panel?.querySelector<HTMLElement>('[data-readout-bar]');
 
     const render = (p: number) => {
-      const frame = scene.build(p);
+      const frame = scene.build(p, ROOMS[tone]);
       if (frame.shadow && shadow.current) r.shadow(shadow.current, frame.shadow.center, frame.shadow.rx, frame.shadow.rz, frame.cam, frame.shadow.strength);
       r.draw(frame.faces, frame.cam);
       if (bar) bar.style.transform = `scaleX(${p})`;
@@ -60,7 +75,7 @@ export function SceneCanvas({ name, label }: { name: SceneName; label: string })
       tween.kill();
       r.destroy();
     };
-  }, [name]);
+  }, [name, tone]);
 
   return (
     <svg
@@ -70,8 +85,8 @@ export function SceneCanvas({ name, label }: { name: SceneName; label: string })
       className={cn(
         'absolute inset-0 h-full w-full',
         // soften the room's edge where it meets the text column
-        SCENES[name].room === 'left' && '[mask-image:linear-gradient(to_right,transparent,black_22%)]',
-        SCENES[name].room === 'right' && '[mask-image:linear-gradient(to_left,transparent,black_22%)]',
+        SCENES[name].room && fade === 'left' && '[mask-image:linear-gradient(to_right,transparent,black_22%)]',
+        SCENES[name].room && fade === 'right' && '[mask-image:linear-gradient(to_left,transparent,black_22%)]',
       )}
       role="img"
       aria-label={label}

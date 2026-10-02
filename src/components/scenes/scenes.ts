@@ -1,7 +1,20 @@
 import { Face, Camera, V3, box, quad, transform, phase } from './engine';
 
 export type SceneFrame = { faces: Face[]; cam: Camera; shadow?: { center: V3; rx: number; rz: number; strength: number } };
-export type SceneDef = { steps: string[]; stepAt: number[]; build: (p: number) => SceneFrame; /** the scene draws a room that should fade out toward the text column */ room?: 'left' | 'right' };
+/** Room colours, matched to the panel the scene sits on. */
+export type SceneEnv = { wall: string; floor: string };
+export type SceneDef = {
+  steps: string[];
+  stepAt: number[];
+  build: (p: number, env: SceneEnv) => SceneFrame;
+  /** the scene draws a room whose edge should fade out toward the text column */
+  room?: boolean;
+};
+
+const roomFaces = (env: SceneEnv, wallZ: number): Face[] => [
+  quad([[-8, 0, wallZ], [8, 0, wallZ], [8, 0, 3], [-8, 0, 3]], [0, 1, 0], 'none', env.floor, { bg: true }),
+  quad([[-8, 0, wallZ], [-8, 6, wallZ], [8, 6, wallZ], [8, 0, wallZ]], [0, 0, 1], 'none', env.wall, { bg: true }),
+];
 
 /* ───────────── Dining table: live-edge walnut slab on V-shaped sled bases ───────────── */
 
@@ -160,27 +173,23 @@ export const cabinetry: SceneDef = {
   },
 };
 
-/* ───────────── Built-in: a three-bay walnut library wall, built then installed ───────────── */
+/* ───────────── Library: a three-bay walnut bookcase wall, built then installed ───────────── */
 
 const BW = 2.4, BH = 2.3, BD = 0.36, BT = 0.026, WALL_Z = -0.42;
 const BAYS = [-1.2, -0.4, 0.4];
 const SHELVES = [0.55, 1.0, 1.45, 1.86];
 const BOOKS = ['#6d3b2e', '#2f4a3a', '#c9b48f', '#3b4660', '#8a6a3c', '#d8cfc0', '#4b2e24'];
 
-export const builtIn: SceneDef = {
-  room: 'left',
+export const library: SceneDef = {
+  room: true,
   steps: ['Uprights', 'Carcass', 'Shelves', 'Installed', 'Lit & styled'],
   stepAt: [0, 0.18, 0.3, 0.58, 0.8],
-  build: (p) => {
+  build: (p, env) => {
     const install = phase(p, 0.6, 0.8);
     const zOff = 0.75 * (1 - install);
     const unitZ = WALL_Z + 0.005;
     const wal = (extra: object = {}) => ({ tex: 'walnut' as const, tile: 1.2, ...extra });
-    const faces: Face[] = [
-      // room: floor and wall
-      quad([[-8, 0, WALL_Z], [8, 0, WALL_Z], [8, 0, 3], [-8, 0, 3]], [0, 1, 0], 'none', '#e8e1d6', { bg: true }),
-      quad([[-8, 0, WALL_Z], [-8, 6, WALL_Z], [8, 6, WALL_Z], [8, 0, WALL_Z]], [0, 0, 1], 'none', '#f0ebe3', { bg: true }),
-    ];
+    const faces: Face[] = roomFaces(env, WALL_Z);
 
     // uprights rise one by one
     [-1.2, -0.4, 0.4, 1.2].forEach((x, i) => {
@@ -246,5 +255,119 @@ export const builtIn: SceneDef = {
   },
 };
 
-export const SCENES = { dining, cabinetry, builtIn };
+/* ───────────── Media wall: oak slat feature wall, floating console, floating shelves, TV ───────────── */
+
+/** Light falling off from a rectangle: stacked, growing, fading quads in one plane. */
+function softGlow(c: V3, w: number, h: number, plane: 'wall' | 'floor', color: string, strength: number, layer: number): Face[] {
+  const rings = 10;
+  return Array.from({ length: rings }, (_, i) => {
+    const g = 1 + i * 0.09;
+    const hw = (w / 2) * g + i * 0.018, hh = (h / 2) * g + i * 0.018;
+    const pts: V3[] =
+      plane === 'wall'
+        ? [[c[0] - hw, c[1] - hh, c[2]], [c[0] + hw, c[1] - hh, c[2]], [c[0] + hw, c[1] + hh, c[2]], [c[0] - hw, c[1] + hh, c[2]]]
+        : [[c[0] - hw, c[1], c[2] - hh], [c[0] + hw, c[1], c[2] - hh], [c[0] + hw, c[1], c[2] + hh], [c[0] - hw, c[1], c[2] + hh]];
+    return quad(pts, plane === 'wall' ? [0, 0, 1] : [0, 1, 0], 'none', color, { opacity: (strength / rings) * 1.15, layer });
+  });
+}
+
+const MW_Z = -0.3;
+const SLATS = 17;
+const SLAT_W = 0.06, SLAT_GAP = 0.045, SLAT_H = 2.6, SLAT_D = 0.03;
+const SLAT_X0 = -((SLATS * SLAT_W + (SLATS - 1) * SLAT_GAP) / 2);
+const SLAT_SPAN = SLATS * SLAT_W + (SLATS - 1) * SLAT_GAP;
+const SHELF_W = 0.62, SHELF_GAP = 0.12;
+// the floating console spans exactly from the outer edge of the left shelves to the outer edge of the right ones
+const WALL_SPAN = SLAT_SPAN + 2 * (SHELF_GAP + SHELF_W);
+const CON = { x: -WALL_SPAN / 2, w: WALL_SPAN, y: 0.26, h: 0.4, d: 0.42 };
+const TV = { w: 1.45, h: 0.83, cy: 1.42 };
+const SHELF_YS = [1.02, 1.42, 1.82];
+const DECOR = ['#e7e0d4', '#b9a58a', '#3d3a36', '#8c5a3c', '#d6cfc3'];
+
+export const mediaWall: SceneDef = {
+  room: true,
+  steps: ['Slat wall', 'Floating console', 'Floating shelves', 'TV mounted', 'Lit & styled'],
+  stepAt: [0, 0.24, 0.42, 0.6, 0.76],
+  build: (p, env) => {
+    const faces: Face[] = roomFaces(env, MW_Z);
+    const back = MW_Z + 0.004;
+
+    // dark backer, then vertical white-oak slats rising one by one
+    const backer = phase(p, 0, 0.06);
+    const slatW = SLATS * SLAT_W + (SLATS - 1) * SLAT_GAP;
+    faces.push(quad([[SLAT_X0, 0, back], [SLAT_X0 + slatW, 0, back], [SLAT_X0 + slatW, SLAT_H, back], [SLAT_X0, SLAT_H, back]], [0, 0, 1], 'none', '#1f1a16', { opacity: backer, layer: -0.6 }));
+    for (let i = 0; i < SLATS; i++) {
+      const mid = Math.abs(i - (SLATS - 1) / 2);
+      const a = phase(p, 0.02 + mid * 0.018, 0.12 + mid * 0.018);
+      faces.push(
+        ...box({ at: [SLAT_X0 + i * (SLAT_W + SLAT_GAP), 0, back], size: [SLAT_W, SLAT_H, SLAT_D], tex: 'oak', grain: 'y', tile: 1.4, offset: [0, 0.7 * (1 - a), 0], opacity: a, skip: ['bottom', 'back'] }).map((f) => ({ ...f, layer: -0.5 })),
+      );
+    }
+
+    // lights (painted early so the pieces sit in front of them)
+    const lit = phase(p, 0.76, 0.9);
+    // warm halo on the slats behind the TV, falling off softly
+    faces.push(...softGlow([0, TV.cy, back + SLAT_D + 0.002], TV.w * 0.9, TV.h * 0.8, 'wall', '#ffcf8f', 0.55 * lit, -0.4));
+    // glow pooling on the floor under the floating console
+    faces.push(...softGlow([0, 0.002, back + CON.d * 0.6], CON.w * 0.8, CON.d * 0.5, 'floor', '#ffd59a', 0.6 * lit, -0.4));
+
+    // floating console slides in and fixes to the wall
+    const con = phase(p, 0.24, 0.44);
+    const cOff: V3 = [0, 0, 0.9 * (1 - con)];
+    faces.push(...box({ at: [CON.x, CON.y, back + SLAT_D], size: [CON.w, CON.h, CON.d], tex: 'walnut', tile: 1.6, offset: cOff, opacity: con }));
+    // door seams across the front (handle-less push-to-open doors)
+    for (let k = 1; k < 5; k++) {
+      const x = CON.x + (CON.w / 5) * k;
+      faces.push(...box({ at: [x - 0.003, CON.y + 0.02, back + SLAT_D + CON.d], size: [0.006, CON.h - 0.04, 0.003], tex: 'none', color: '#1a120c', offset: cOff, opacity: con, skip: ['back', 'bottom'] }).map((f) => ({ ...f, layer: 1 })));
+    }
+    // LED strip along the console's underside edge
+    faces.push(quad([[CON.x + 0.06, CON.y - 0.004, back + SLAT_D + CON.d - 0.03], [CON.x + CON.w - 0.06, CON.y - 0.004, back + SLAT_D + CON.d - 0.03], [CON.x + CON.w - 0.06, CON.y + 0.006, back + SLAT_D + CON.d - 0.03], [CON.x + 0.06, CON.y + 0.006, back + SLAT_D + CON.d - 0.03]], [0, 0, 1], 'none', '#fff3dc', { opacity: lit, layer: 2 }));
+
+    // floating shelves, no visible brackets, both sides of the slat wall
+    const sideX = [SLAT_X0 - SHELF_GAP - SHELF_W, SLAT_X0 + slatW + SHELF_GAP];
+    sideX.forEach((sx, side) =>
+      SHELF_YS.forEach((y, k) => {
+        const a = phase(p, 0.42 + (k * 2 + side) * 0.025, 0.54 + (k * 2 + side) * 0.025);
+        const off: V3 = [0, 0, 0.5 * (1 - a)];
+        faces.push(...box({ at: [sx, y, back], size: [SHELF_W, 0.05, 0.26], tex: 'walnut', tile: 1.0, offset: off, opacity: a }));
+        faces.push(quad([[sx + 0.04, y - 0.01, back + 0.24], [sx + SHELF_W - 0.04, y - 0.01, back + 0.24], [sx + SHELF_W - 0.04, y - 0.002, back + 0.24], [sx + 0.04, y - 0.002, back + 0.24]], [0, 0, 1], 'none', '#fff3dc', { opacity: lit, layer: 2 }));
+      }),
+    );
+
+    // TV lowered onto its mount
+    const tv = phase(p, 0.6, 0.76);
+    const tvOff: V3 = [0, 0.25 * (1 - tv), 0.35 * (1 - tv)];
+    const tvZ = back + SLAT_D + 0.03;
+    faces.push(
+      ...box({ at: [-TV.w / 2, TV.cy - TV.h / 2, tvZ], size: [TV.w, TV.h, 0.035], tex: 'none', color: '#0c0d0f', offset: tvOff, opacity: tv }).map((f) => ({ ...f, layer: 1 })),
+    );
+    const on = phase(p, 0.82, 0.94);
+    const inset = 0.012;
+    faces.push(
+      quad([[-TV.w / 2 + inset, TV.cy - TV.h / 2 + inset, tvZ + 0.036], [TV.w / 2 - inset, TV.cy - TV.h / 2 + inset, tvZ + 0.036], [TV.w / 2 - inset, TV.cy + TV.h / 2 - inset, tvZ + 0.036], [-TV.w / 2 + inset, TV.cy + TV.h / 2 - inset, tvZ + 0.036]], [0, 0, 1], 'none', '#1f2a3b', { opacity: 0.9 * on * tv, layer: 1.5 }),
+      // soft diagonal glare across the glass
+      quad([[-TV.w / 2 + inset, TV.cy + TV.h / 2 - inset, tvZ + 0.037], [-TV.w / 2 + 0.55, TV.cy + TV.h / 2 - inset, tvZ + 0.037], [-TV.w / 2 + 0.2, TV.cy - TV.h / 2 + inset, tvZ + 0.037], [-TV.w / 2 + inset, TV.cy - TV.h / 2 + inset, tvZ + 0.037]], [0, 0, 1], 'none', '#ffffff', { opacity: 0.06 * tv, layer: 1.6 }),
+    );
+
+    // decor appears last: ceramics and short book stacks
+    const decor = phase(p, 0.86, 0.97);
+    let n = 0;
+    sideX.forEach((sx) =>
+      SHELF_YS.forEach((y, k) => {
+        const c = DECOR[(n++ * 2) % DECOR.length];
+        if ((k + n) % 2 === 0) {
+          faces.push(...box({ at: [sx + 0.12, y + 0.05, back + 0.07], size: [0.11, 0.18 + k * 0.03, 0.11], tex: 'none', color: c, opacity: decor, skip: ['bottom', 'back'] }).map((f) => ({ ...f, layer: 2 })));
+        } else {
+          [0, 1, 2].forEach((j) =>
+            faces.push(...box({ at: [sx + 0.3, y + 0.05 + j * 0.035, back + 0.06], size: [0.22 - j * 0.02, 0.033, 0.16], tex: 'none', color: DECOR[(j + k) % DECOR.length], opacity: decor, skip: ['bottom', 'back'] }).map((f) => ({ ...f, layer: 2 }))),
+          );
+        }
+      }),
+    );
+
+    return { faces, cam: { yaw: -0.32 + 0.12 * p, pitch: 0.12, scale: 180, cx: 500, cy: 612 } };
+  },
+};
+
+export const SCENES = { dining, cabinetry, library, mediaWall };
 export type SceneName = keyof typeof SCENES;

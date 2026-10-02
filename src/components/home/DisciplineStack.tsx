@@ -80,7 +80,7 @@ function Panel({ d, i }: { d: Discipline; i: number }) {
               )}
             >
               {d.scene ? (
-                <SceneCanvas name={d.scene} label={d.sceneLabel ?? d.title} />
+                <SceneCanvas name={d.scene} label={d.sceneLabel ?? d.title} tone={d.tone} fade={d.layout === 'split-reverse' ? 'left' : 'right'} />
               ) : (
                 <Image src={d.image} alt={d.imageAlt} fill sizes={sizes} className="object-cover" style={{ objectPosition: d.imagePosition }} />
               )}
