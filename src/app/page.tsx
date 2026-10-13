@@ -2,7 +2,6 @@ import { fetchFeaturedProducts, getProductPrice, getProductImages, getWoodTypeFr
 import { Product } from '@/types/product';
 import { Hero } from '@/components/home/Hero';
 import { Statement } from '@/components/home/Statement';
-import { BoardStory } from '@/components/home/BoardStory';
 import { AvailableNow } from '@/components/home/AvailableNow';
 import { Testimonials } from '@/components/home/Testimonials';
 import { Studio } from '@/components/home/Studio';
@@ -35,7 +34,7 @@ function shopifyToProduct(p: ShopifyProduct): Product {
   } as Product;
 }
 
-// Story: arrive → what we believe → how it's made → buy now → proof → who we are → begin.
+// Story: arrive → what we believe → buy now → proof → who we are → begin.
 export default async function HomePage() {
   const featured = await fetchFeaturedProducts(4).catch(() => []);
   const products = featured.map(shopifyToProduct);
@@ -44,7 +43,6 @@ export default async function HomePage() {
     <>
       <Hero />
       <Statement />
-      <BoardStory />
       <AvailableNow products={products} />
       <Testimonials />
       <Studio />

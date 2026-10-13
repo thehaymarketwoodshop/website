@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { CustomOrderForm } from '@/components';
 import { PageHero } from '@/components/ui/PageHero';
 import { DisciplineStack } from '@/components/home/DisciplineStack';
+import { BoardStory } from '@/components/home/BoardStory';
 import { process } from '@/content/site';
 
 export const metadata: Metadata = {
@@ -22,6 +23,7 @@ export default function CustomOrderPage() {
         lede="Have something specific in mind? Tell us about it and we’ll build you a quote."
       />
       <DisciplineStack />
+      <BoardStory />
       <section className="pb-[var(--section)]">
         <div className="container-wide grid-12 gap-y-16">
           <ol className="col-span-4 md:col-span-8 lg:col-span-4">
