@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import { Instagram } from 'lucide-react';
 import { ContactForm } from '@/components';
 import { PageHero } from '@/components/ui/PageHero';
-import { brand } from '@/content/site';
+import { brand, social } from '@/content/site';
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -52,6 +53,19 @@ export default function ContactPage() {
                 After your inquiry we schedule a consultation to talk through the details, then send a quote with a timeline. Once approved,
                 your piece is made with regular updates along the way.
               </p>
+            </div>
+            <div className="mt-10">
+              <h2 className="font-serif text-2xl">Follow along</h2>
+              <ul className="mt-3 flex gap-4">
+                {social.map((s) => (
+                  <li key={s.href}>
+                    <a href={s.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 t-body hover:text-accent">
+                      <Instagram size={18} strokeWidth={1.5} />
+                      {s.handle}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
           <div className="col-span-4 md:col-span-8 lg:col-span-7 lg:col-start-6">

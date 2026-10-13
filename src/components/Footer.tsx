@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { brand, nav, secondaryNav, legalNav } from '@/content/site';
+import { Instagram } from 'lucide-react';
+import { brand, nav, secondaryNav, legalNav, social } from '@/content/site';
 
 export function Footer() {
   return (
@@ -38,6 +39,16 @@ export function Footer() {
                 {brand.email}
               </a>
             </address>
+            <p className="t-label mb-5 mt-10 text-muted">Follow</p>
+            <ul className="flex gap-4">
+              {social.map((s) => (
+                <li key={s.href}>
+                  <a href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label} className="text-muted transition-colors hover:text-foreground">
+                    <Instagram size={20} strokeWidth={1.5} />
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 

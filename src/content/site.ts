@@ -18,6 +18,10 @@ export const brand = {
   tagline: 'Built once. Kept for generations.',
 };
 
+export const social = [
+  { label: 'Instagram', href: 'https://www.instagram.com/thehaymarketwoodshop', handle: '@thehaymarketwoodshop' },
+];
+
 export const nav = [
   { href: '/products', label: 'Shop' },
   { href: '/custom-order', label: 'Commission' },
