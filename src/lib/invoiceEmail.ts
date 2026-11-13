@@ -1,20 +1,7 @@
 import 'server-only';
-import nodemailer from 'nodemailer';
+import { resend, FROM_ADDRESS } from '@/lib/resend';
 import type { DbInvoice } from '@/types/invoice';
 import { fmtCents } from '@/lib/invoiceMath';
-
-function getTransporter() {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    throw new Error('Missing SMTP environment variables');
-  }
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: parseInt(SMTP_PORT || '587', 10),
-    secure: parseInt(SMTP_PORT || '587', 10) === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
-}
 
 function adminEmail(): string {
   return process.env.INVOICE_ADMIN_EMAIL || process.env.CONTACT_TO_EMAIL || '';
@@ -50,9 +37,8 @@ function wrapHtml(title: string, bodyHtml: string): string {
 
 export async function sendInvoiceLink(invoice: DbInvoice, invoiceLink: string) {
   if (!invoice.buyer_email) return;
-  const transporter = getTransporter();
-  await transporter.sendMail({
-    from: `"The Haymarket Woodshop" <${process.env.SMTP_USER}>`,
+  await resend.emails.send({
+    from: `The Haymarket Woodshop <${FROM_ADDRESS.sales}>`,
     to: invoice.buyer_email,
     subject: `Invoice ${invoice.invoice_no} from The Haymarket Woodshop`,
     text: `You have a new invoice (${invoice.invoice_no}) for ${fmtCents(invoice.total_cents)}. Review and sign it here: ${invoiceLink}`,
@@ -70,7 +56,6 @@ export async function sendSignedConfirmation(
   invoiceLink: string,
   signerName: string
 ) {
-  const transporter = getTransporter();
   const admin = adminEmail();
 
   const customerHtml = wrapHtml(
@@ -84,8 +69,8 @@ export async function sendSignedConfirmation(
 
   if (invoice.buyer_email) {
     sends.push(
-      transporter.sendMail({
-        from: `"The Haymarket Woodshop" <${process.env.SMTP_USER}>`,
+      resend.emails.send({
+        from: `The Haymarket Woodshop <${FROM_ADDRESS.sales}>`,
         to: invoice.buyer_email,
         subject: `You signed invoice ${invoice.invoice_no}`,
         text: `Thanks, ${signerName}. Your signature on invoice ${invoice.invoice_no} has been recorded. Total due: ${fmtCents(invoice.total_cents)}. View: ${invoiceLink}`,
@@ -96,8 +81,8 @@ export async function sendSignedConfirmation(
 
   if (admin) {
     sends.push(
-      transporter.sendMail({
-        from: `"The Haymarket Woodshop Website" <${process.env.SMTP_USER}>`,
+      resend.emails.send({
+        from: `The Haymarket Woodshop Website <${FROM_ADDRESS.sales}>`,
         to: admin,
         subject: `Invoice ${invoice.invoice_no} was signed by ${signerName}`,
         text: `${signerName} (${invoice.buyer_email || 'no email'}) signed invoice ${invoice.invoice_no} for ${fmtCents(invoice.total_cents)}.`,
@@ -114,14 +99,13 @@ export async function sendSignedConfirmation(
 }
 
 export async function sendPaymentReceipt(invoice: DbInvoice) {
-  const transporter = getTransporter();
   const admin = adminEmail();
   const sends: Promise<unknown>[] = [];
 
   if (invoice.buyer_email) {
     sends.push(
-      transporter.sendMail({
-        from: `"The Haymarket Woodshop" <${process.env.SMTP_USER}>`,
+      resend.emails.send({
+        from: `The Haymarket Woodshop <${FROM_ADDRESS.sales}>`,
         to: invoice.buyer_email,
         subject: `Payment received — Invoice ${invoice.invoice_no}`,
         text: `We've received your payment of ${fmtCents(invoice.total_cents)} for invoice ${invoice.invoice_no}. Thank you!`,
@@ -135,8 +119,8 @@ export async function sendPaymentReceipt(invoice: DbInvoice) {
 
   if (admin) {
     sends.push(
-      transporter.sendMail({
-        from: `"The Haymarket Woodshop Website" <${process.env.SMTP_USER}>`,
+      resend.emails.send({
+        from: `The Haymarket Woodshop Website <${FROM_ADDRESS.sales}>`,
         to: admin,
         subject: `Invoice ${invoice.invoice_no} paid`,
         text: `Invoice ${invoice.invoice_no} was paid — ${fmtCents(invoice.total_cents)}.`,

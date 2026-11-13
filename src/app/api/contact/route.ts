@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { resend, FROM_ADDRESS } from '@/lib/resend';
 import { contactFormSchema } from '@/lib/validation';
 
 // Simple in-memory rate limiter
@@ -57,15 +57,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check environment variables
-    const {
-      SMTP_HOST,
-      SMTP_PORT,
-      SMTP_USER,
-      SMTP_PASS,
-      CONTACT_TO_EMAIL,
-    } = process.env;
+    const { CONTACT_TO_EMAIL } = process.env;
 
-    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !CONTACT_TO_EMAIL) {
+    if (!CONTACT_TO_EMAIL) {
       console.error('Missing email configuration environment variables');
       return NextResponse.json(
         { error: 'Email service not configured. Please try again later.' },
@@ -73,20 +67,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: parseInt(SMTP_PORT || '587', 10),
-      secure: parseInt(SMTP_PORT || '587', 10) === 465,
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-      },
-    });
-
     // Email content
     const mailOptions = {
-      from: `"The Haymarket Woodshop Website" <${SMTP_USER}>`,
+      from: `The Haymarket Woodshop Website <${FROM_ADDRESS.contact}>`,
       to: CONTACT_TO_EMAIL,
       replyTo: email,
       subject: `New Contact Form Submission from ${name}`,
@@ -153,7 +136,7 @@ This email was sent from the contact form at haymarketwoodshop.com
     };
 
     // Send email
-    await transporter.sendMail(mailOptions);
+    await resend.emails.send(mailOptions);
 
     return NextResponse.json({ success: true });
   } catch (error) {
