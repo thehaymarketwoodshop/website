@@ -27,6 +27,7 @@ export const nav = [
   { href: '/custom-order', label: 'Commission' },
   { href: '/woods', label: 'Materials' },
   { href: '/about', label: 'Studio' },
+  { href: '/instagram', label: 'Instagram' },
   { href: '/contact', label: 'Contact' },
 ];
 

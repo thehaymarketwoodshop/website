@@ -83,6 +83,7 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
   const [notes, setNotes] = useState('Thank you for your business!');
   const [paymentMethods, setPaymentMethods] = useState<string[]>(['Bank Transfer (ACH)']);
   const [projectDescription, setProjectDescription] = useState('');
+  const [optionLabel, setOptionLabel] = useState('');
   const [renderImageUrl, setRenderImageUrl] = useState<string | null>(null);
   const [legalText, setLegalText] = useState(DEFAULT_LEGAL_AGREEMENT);
 
@@ -142,6 +143,7 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
       setNotes(inv.notes || '');
       setPaymentMethods(inv.payment_methods || []);
       setProjectDescription(inv.project_description || '');
+      setOptionLabel(inv.option_label || '');
       setRenderImageUrl(inv.render_image_url);
       setLegalText(inv.legal_text || DEFAULT_LEGAL_AGREEMENT);
 
@@ -226,6 +228,7 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
         notes: notes || null,
         payment_methods: paymentMethods,
         project_description: projectDescription || null,
+        option_label: optionLabel || null,
         render_image_url: renderImageUrl,
         legal_text: legalText,
         subtotal_cents: t.subtotalCents,
@@ -430,6 +433,12 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
 
         <div className="card p-6">
           <h2 className="heading-card mb-4 text-lg">Prospective Project</h2>
+          <label className="block text-xs font-semibold uppercase tracking-wide mb-1">Option Label (optional)</label>
+          <p className="body-regular text-sm mb-2" style={{ opacity: 0.75 }}>
+            Only needed if you&apos;re sending this client multiple invoice options to choose from — e.g.
+            &quot;Standard Oak&quot; vs &quot;Premium Walnut&quot;. See the Invoices list to group and send options together.
+          </p>
+          <input className={inp} value={optionLabel} onChange={(e) => setOptionLabel(e.target.value)} placeholder="e.g. Premium Walnut" style={{ marginBottom: 16 }} />
           <label className="block text-xs font-semibold uppercase tracking-wide mb-1">Explain the Project</label>
           <textarea className={inp} rows={4} value={projectDescription} onChange={(e) => setProjectDescription(e.target.value)} placeholder="Describe the proposed project..." style={{ marginBottom: 16, resize: 'vertical' }} />
           <label className="block text-xs font-semibold uppercase tracking-wide mb-1">3D Render / Image</label>

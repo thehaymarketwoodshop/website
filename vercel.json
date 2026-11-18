@@ -4,6 +4,11 @@
       "schedule": "0 * * * *",
       "path": "/api/cron/keep-alive",
       "requestMethod": "GET"
+    },
+    "instagram-sync": {
+      "schedule": "15 * * * *",
+      "path": "/api/cron/instagram-sync",
+      "requestMethod": "GET"
     }
   }
 }

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Loader2, Copy, Check, Trash2 } from 'lucide-react';
-import { checkIsAdmin, fetchInvoices, deleteInvoice } from '@/lib/supabaseClient';
+import { ArrowLeft, Plus, Loader2, Copy, Check, Trash2, Send } from 'lucide-react';
+import { checkIsAdmin, fetchInvoices, deleteInvoice, supabase } from '@/lib/supabaseClient';
 import { fmtCents } from '@/lib/invoiceMath';
 import type { DbInvoice, InvoiceStatus } from '@/types/invoice';
 import { Button } from '@/components/Button';
@@ -23,6 +23,9 @@ export default function AdminInvoicesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [invoices, setInvoices] = useState<DbInvoice[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [grouping, setGrouping] = useState(false);
+  const [groupError, setGroupError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -38,6 +41,45 @@ export default function AdminInvoicesPage() {
     navigator.clipboard.writeText(url);
     setCopiedId(inv.id);
     setTimeout(() => setCopiedId(null), 1500);
+  }
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const selectedInvoices = useMemo(
+    () => invoices.filter((inv) => selected.has(inv.id)),
+    [invoices, selected]
+  );
+
+  const groupCanSend =
+    selectedInvoices.length >= 2 &&
+    selectedInvoices.every((inv) => inv.status === 'draft' && !inv.group_id && inv.buyer_email) &&
+    selectedInvoices.every((inv) => inv.buyer_email === selectedInvoices[0].buyer_email);
+
+  async function handleSendOptions() {
+    setGroupError('');
+    setGrouping(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin/invoice-groups/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ invoiceIds: Array.from(selected) }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to send options');
+      setInvoices(await fetchInvoices());
+      setSelected(new Set());
+    } catch (err) {
+      setGroupError(err instanceof Error ? err.message : 'Failed to send options');
+    }
+    setGrouping(false);
   }
 
   async function handleDelete(inv: DbInvoice) {
@@ -85,10 +127,36 @@ export default function AdminInvoicesPage() {
         </Link>
       </div>
 
+      <div className="card p-4 mb-4 text-sm" style={{ backgroundColor: 'var(--color-ivory-dark)' }}>
+        <strong>Multiple options for the same client?</strong> Create one draft invoice per option (e.g. different
+        material grades), give each an &quot;Option Label&quot; on its edit page, then check two or more below with the
+        same buyer email and click &quot;Send as Options&quot;. The client gets one link, picks an option, and signs + pays —
+        the other options are automatically voided.
+      </div>
+
+      {selected.size > 0 && (
+        <div className="card p-4 mb-4 flex items-center justify-between gap-4 flex-wrap">
+          <span className="text-sm">{selected.size} selected</span>
+          <div className="flex items-center gap-3">
+            {groupError && <span className="text-sm text-red-600">{groupError}</span>}
+            <Button onClick={handleSendOptions} disabled={!groupCanSend || grouping}>
+              <Send className="w-4 h-4 mr-2" />
+              {grouping ? 'Sending…' : 'Send as Options'}
+            </Button>
+          </div>
+        </div>
+      )}
+      {selected.size >= 2 && !groupCanSend && (
+        <p className="text-sm text-red-600 mb-4">
+          All selected invoices must be drafts, not already part of a group, and share the same buyer email.
+        </p>
+      )}
+
       <div className="card overflow-hidden">
         <table className="w-full">
           <thead style={{ backgroundColor: 'var(--color-ivory-dark)', borderBottom: '1px solid var(--color-stone)' }}>
             <tr>
+              <th className="px-6 py-4 w-10"></th>
               <th className="text-left px-6 py-4 text-sm font-semibold">Invoice #</th>
               <th className="text-left px-6 py-4 text-sm font-semibold">Buyer</th>
               <th className="text-left px-6 py-4 text-sm font-semibold">Total</th>
@@ -99,14 +167,24 @@ export default function AdminInvoicesPage() {
           <tbody className="divide-y" style={{ borderColor: 'var(--color-stone)' }}>
             {invoices.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center body-regular">
+                <td colSpan={6} className="px-6 py-12 text-center body-regular">
                   No invoices yet. Click &quot;New Invoice&quot; to create one.
                 </td>
               </tr>
             ) : (
               invoices.map((inv) => (
                 <tr key={inv.id}>
-                  <td className="px-6 py-4 font-medium">{inv.invoice_no}</td>
+                  <td className="px-6 py-4">
+                    <input type="checkbox" checked={selected.has(inv.id)} onChange={() => toggleSelected(inv.id)} />
+                  </td>
+                  <td className="px-6 py-4 font-medium">
+                    {inv.invoice_no}
+                    {inv.option_label && (
+                      <div className="text-xs font-normal mt-0.5" style={{ color: 'var(--color-walnut)' }}>
+                        {inv.option_label}{inv.group_id ? ' · grouped' : ''}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-6 py-4 body-regular">{inv.buyer_company || inv.buyer_email || '—'}</td>
                   <td className="px-6 py-4 body-regular">{fmtCents(inv.total_cents)}</td>
                   <td className="px-6 py-4">

@@ -6,6 +6,7 @@ import { AvailableNow } from '@/components/home/AvailableNow';
 import { Testimonials } from '@/components/home/Testimonials';
 import { Studio } from '@/components/home/Studio';
 import { ClosingCTA } from '@/components/home/ClosingCTA';
+import { InstagramFeed } from '@/components/home/InstagramFeed';
 
 export const revalidate = 60;
 
@@ -44,6 +45,7 @@ export default async function HomePage() {
       <Hero />
       <Statement />
       <AvailableNow products={products} />
+      <InstagramFeed />
       <Testimonials />
       <Studio />
       <ClosingCTA />

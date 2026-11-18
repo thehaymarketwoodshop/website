@@ -1,5 +1,6 @@
 export type InvoiceStatus = 'draft' | 'sent' | 'viewed' | 'signed' | 'paid' | 'void';
 export type DiscountType = 'percent' | 'flat';
+export type InvoiceGroupStatus = 'pending' | 'selected' | 'void';
 
 export interface DbInvoiceItem {
   id: string;
@@ -45,10 +46,30 @@ export interface DbInvoice {
   paid_at: string | null;
   shopify_draft_order_id: string | null;
   shopify_invoice_url: string | null;
+
+  // Set when this invoice is one of several options sent to the same client
+  // under a single invoice_groups link (see DbInvoiceGroup).
+  group_id: string | null;
+  option_label: string | null;
 }
 
 export interface DbInvoiceWithItems extends DbInvoice {
   invoice_items: DbInvoiceItem[];
+}
+
+export interface DbInvoiceGroup {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  public_token: string;
+  status: InvoiceGroupStatus;
+  selected_invoice_id: string | null;
+  sent_at: string | null;
+  viewed_at: string | null;
+}
+
+export interface DbInvoiceGroupWithOptions extends DbInvoiceGroup {
+  invoices: DbInvoiceWithItems[];
 }
 
 export interface DbInvoiceSignature {

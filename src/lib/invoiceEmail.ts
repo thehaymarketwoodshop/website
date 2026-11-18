@@ -51,6 +51,36 @@ export async function sendInvoiceLink(invoice: DbInvoice, invoiceLink: string) {
   });
 }
 
+export async function sendInvoiceOptionsLink(
+  buyerEmail: string,
+  options: DbInvoice[],
+  optionsLink: string
+) {
+  const rows = options
+    .map(
+      (opt) =>
+        `<li><strong>${opt.option_label || opt.invoice_no}</strong> — ${fmtCents(opt.total_cents)}</li>`
+    )
+    .join('');
+  const plainRows = options
+    .map((opt) => `- ${opt.option_label || opt.invoice_no}: ${fmtCents(opt.total_cents)}`)
+    .join('\n');
+
+  await resend.emails.send({
+    from: `The Haymarket Woodshop <${FROM_ADDRESS.sales}>`,
+    to: buyerEmail,
+    subject: `Choose your option — ${options.length} invoices to review`,
+    text: `You have ${options.length} invoice options to choose from:\n\n${plainRows}\n\nReview and select one here: ${optionsLink}`,
+    html: wrapHtml(
+      'Choose Your Option',
+      `<p>We've put together <strong>${options.length} options</strong> for your project.</p>
+       <ul>${rows}</ul>
+       <p>Review the full details of each and select the one you'd like to move forward with.</p>
+       <a class="btn" href="${optionsLink}">Review &amp; Choose an Option</a>`
+    ),
+  });
+}
+
 export async function sendSignedConfirmation(
   invoice: DbInvoice,
   invoiceLink: string,
