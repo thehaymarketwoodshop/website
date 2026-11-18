@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resend, FROM_ADDRESS } from '@/lib/resend';
+import nodemailer from 'nodemailer';
 import { customOrderSchema } from '@/lib/validation';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -65,11 +65,19 @@ export async function POST(request: NextRequest) {
       console.error('Failed to save custom order request:', dbError);
     }
 
+    const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
     const adminEmail = process.env.INVOICE_ADMIN_EMAIL || process.env.CONTACT_TO_EMAIL;
 
-    if (adminEmail) {
-      await resend.emails.send({
-        from: `The Haymarket Woodshop Website <${FROM_ADDRESS.quotes}>`,
+    if (SMTP_HOST && SMTP_USER && SMTP_PASS && adminEmail) {
+      const transporter = nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: parseInt(SMTP_PORT || '587', 10),
+        secure: parseInt(SMTP_PORT || '587', 10) === 465,
+        auth: { user: SMTP_USER, pass: SMTP_PASS },
+      });
+
+      await transporter.sendMail({
+        from: `"The Haymarket Woodshop Website" <${SMTP_USER}>`,
         to: adminEmail,
         replyTo: email,
         subject: `New Custom Order Request from ${name}`,
