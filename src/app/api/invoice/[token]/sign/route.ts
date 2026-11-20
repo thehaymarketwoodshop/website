@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { signInvoiceSchema } from '@/lib/validation';
-import { createDraftOrderForInvoice } from '@/lib/shopify';
+import { createDraftOrderForInvoice, createDraftOrderForAmount } from '@/lib/shopify';
 import { sendSignedConfirmation } from '@/lib/invoiceEmail';
+import { computeDepositSplit } from '@/lib/invoiceMath';
 import type { DbInvoiceItem, DbInvoiceWithItems } from '@/types/invoice';
 
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
@@ -57,10 +58,21 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   // Signing succeeds even if Shopify isn't configured yet — the admin can send the
   // pay link later once SHOPIFY_* env vars are set.
   try {
-    const items = inv.invoice_items as DbInvoiceItem[];
-    const { draftOrderId, invoiceUrl } = await createDraftOrderForInvoice(inv, items);
-    updates.shopify_draft_order_id = draftOrderId;
-    updates.shopify_invoice_url = invoiceUrl;
+    if (inv.deposit_percent != null) {
+      const { depositCents } = computeDepositSplit(inv.total_cents, inv.deposit_percent);
+      const { draftOrderId, invoiceUrl } = await createDraftOrderForAmount(inv, {
+        title: `Deposit (${inv.deposit_percent}%) — Invoice ${inv.invoice_no}`,
+        amountCents: depositCents,
+        noteStage: 'Deposit',
+      });
+      updates.shopify_draft_order_id = draftOrderId;
+      updates.shopify_invoice_url = invoiceUrl;
+    } else {
+      const items = inv.invoice_items as DbInvoiceItem[];
+      const { draftOrderId, invoiceUrl } = await createDraftOrderForInvoice(inv, items);
+      updates.shopify_draft_order_id = draftOrderId;
+      updates.shopify_invoice_url = invoiceUrl;
+    }
   } catch (err) {
     console.error('Shopify draft order creation failed:', err);
   }

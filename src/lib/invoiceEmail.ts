@@ -1,7 +1,7 @@
 import 'server-only';
 import nodemailer from 'nodemailer';
 import type { DbInvoice } from '@/types/invoice';
-import { fmtCents } from '@/lib/invoiceMath';
+import { fmtCents, computeDepositSplit } from '@/lib/invoiceMath';
 
 function getTransporter() {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
@@ -104,10 +104,20 @@ export async function sendSignedConfirmation(
   const transporter = getTransporter();
   const admin = adminEmail();
 
+  const hasDeposit = invoice.deposit_percent != null;
+  const split = hasDeposit ? computeDepositSplit(invoice.total_cents, invoice.deposit_percent!) : null;
+  const dueNowLine = split
+    ? `Deposit due now (${invoice.deposit_percent}%): <strong>${fmtCents(split.depositCents)}</strong></p>
+       <p>Balance due upon completion: <strong>${fmtCents(split.balanceCents)}</strong>`
+    : `Total due: <strong>${fmtCents(invoice.total_cents)}</strong>`;
+  const dueNowPlain = split
+    ? `Deposit due now (${invoice.deposit_percent}%): ${fmtCents(split.depositCents)}. Balance due upon completion: ${fmtCents(split.balanceCents)}.`
+    : `Total due: ${fmtCents(invoice.total_cents)}.`;
+
   const customerHtml = wrapHtml(
     'Invoice Signed — Confirmation',
     `<p>Thanks, ${signerName}. Your signature on invoice <strong>${invoice.invoice_no}</strong> has been recorded.</p>
-     <p>Total due: <strong>${fmtCents(invoice.total_cents)}</strong></p>
+     <p>${dueNowLine}</p>
      <a class="btn" href="${invoiceLink}">View Invoice &amp; Pay</a>`
   );
 
@@ -119,7 +129,7 @@ export async function sendSignedConfirmation(
         from: `"The Haymarket Woodshop" <${process.env.SMTP_USER}>`,
         to: invoice.buyer_email,
         subject: `You signed invoice ${invoice.invoice_no}`,
-        text: `Thanks, ${signerName}. Your signature on invoice ${invoice.invoice_no} has been recorded. Total due: ${fmtCents(invoice.total_cents)}. View: ${invoiceLink}`,
+        text: `Thanks, ${signerName}. Your signature on invoice ${invoice.invoice_no} has been recorded. ${dueNowPlain} View: ${invoiceLink}`,
         html: customerHtml,
       })
     );
@@ -144,7 +154,10 @@ export async function sendSignedConfirmation(
   await Promise.all(sends);
 }
 
-export async function sendPaymentReceipt(invoice: DbInvoice) {
+// amountPaidCents defaults to the invoice total — pass the balance amount when this
+// is the second payment of a deposit/balance split, so the receipt reflects what was
+// actually charged on this stage rather than the full invoice total again.
+export async function sendPaymentReceipt(invoice: DbInvoice, amountPaidCents = invoice.total_cents) {
   const transporter = getTransporter();
   const admin = adminEmail();
   const sends: Promise<unknown>[] = [];
@@ -155,10 +168,10 @@ export async function sendPaymentReceipt(invoice: DbInvoice) {
         from: `"The Haymarket Woodshop" <${process.env.SMTP_USER}>`,
         to: invoice.buyer_email,
         subject: `Payment received — Invoice ${invoice.invoice_no}`,
-        text: `We've received your payment of ${fmtCents(invoice.total_cents)} for invoice ${invoice.invoice_no}. Thank you!`,
+        text: `We've received your payment of ${fmtCents(amountPaidCents)} for invoice ${invoice.invoice_no}. This invoice is now paid in full. Thank you!`,
         html: wrapHtml(
           'Payment Received',
-          `<p>We've received your payment of <strong>${fmtCents(invoice.total_cents)}</strong> for invoice <strong>${invoice.invoice_no}</strong>. Thank you!</p>`
+          `<p>We've received your payment of <strong>${fmtCents(amountPaidCents)}</strong> for invoice <strong>${invoice.invoice_no}</strong>. This invoice is now paid in full. Thank you!</p>`
         ),
       })
     );
@@ -170,11 +183,68 @@ export async function sendPaymentReceipt(invoice: DbInvoice) {
         from: `"The Haymarket Woodshop Website" <${process.env.SMTP_USER}>`,
         to: admin,
         subject: `Invoice ${invoice.invoice_no} paid`,
-        text: `Invoice ${invoice.invoice_no} was paid — ${fmtCents(invoice.total_cents)}.`,
-        html: wrapHtml('Invoice Paid', `<p>Invoice <strong>${invoice.invoice_no}</strong> was paid — <strong>${fmtCents(invoice.total_cents)}</strong>.</p>`),
+        text: `Invoice ${invoice.invoice_no} was paid in full — ${fmtCents(amountPaidCents)} just received.`,
+        html: wrapHtml('Invoice Paid', `<p>Invoice <strong>${invoice.invoice_no}</strong> was paid in full — <strong>${fmtCents(amountPaidCents)}</strong> just received.</p>`),
       })
     );
   }
 
   await Promise.all(sends);
+}
+
+export async function sendDepositReceipt(invoice: DbInvoice, depositCents: number, balanceCents: number) {
+  const transporter = getTransporter();
+  const admin = adminEmail();
+  const sends: Promise<unknown>[] = [];
+
+  if (invoice.buyer_email) {
+    sends.push(
+      transporter.sendMail({
+        from: `"The Haymarket Woodshop" <${process.env.SMTP_USER}>`,
+        to: invoice.buyer_email,
+        subject: `Deposit received — Invoice ${invoice.invoice_no}`,
+        text: `We've received your deposit of ${fmtCents(depositCents)} for invoice ${invoice.invoice_no}. The remaining balance of ${fmtCents(balanceCents)} will be due upon completion — we'll send a payment link then. Thank you!`,
+        html: wrapHtml(
+          'Deposit Received',
+          `<p>We've received your deposit of <strong>${fmtCents(depositCents)}</strong> for invoice <strong>${invoice.invoice_no}</strong>.</p>
+           <p>The remaining balance of <strong>${fmtCents(balanceCents)}</strong> will be due upon completion — we'll send a payment link once your piece is ready.</p>`
+        ),
+      })
+    );
+  }
+
+  if (admin) {
+    sends.push(
+      transporter.sendMail({
+        from: `"The Haymarket Woodshop Website" <${process.env.SMTP_USER}>`,
+        to: admin,
+        subject: `Deposit received — Invoice ${invoice.invoice_no}`,
+        text: `Deposit of ${fmtCents(depositCents)} received for invoice ${invoice.invoice_no}. Balance of ${fmtCents(balanceCents)} due upon completion — send the balance invoice from the admin when ready.`,
+        html: wrapHtml(
+          'Deposit Received',
+          `<p>Deposit of <strong>${fmtCents(depositCents)}</strong> received for invoice <strong>${invoice.invoice_no}</strong>.</p>
+           <p>Balance of <strong>${fmtCents(balanceCents)}</strong> due upon completion — send the balance invoice from the admin when ready.</p>`
+        ),
+      })
+    );
+  }
+
+  await Promise.all(sends);
+}
+
+export async function sendBalanceDueLink(invoice: DbInvoice, balanceCents: number, balanceLink: string) {
+  if (!invoice.buyer_email) return;
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"The Haymarket Woodshop" <${process.env.SMTP_USER}>`,
+    to: invoice.buyer_email,
+    subject: `Balance due — Invoice ${invoice.invoice_no}`,
+    text: `Your piece is ready! The remaining balance of ${fmtCents(balanceCents)} for invoice ${invoice.invoice_no} is now due. Pay here: ${balanceLink}`,
+    html: wrapHtml(
+      'Balance Due',
+      `<p>Your piece is ready! The remaining balance for invoice <strong>${invoice.invoice_no}</strong> is now due.</p>
+       <p>Balance due: <strong>${fmtCents(balanceCents)}</strong></p>
+       <a class="btn" href="${balanceLink}">Pay Balance</a>`
+    ),
+  });
 }

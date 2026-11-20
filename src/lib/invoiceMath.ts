@@ -36,6 +36,14 @@ export function computeInvoiceTotals(
   return { subtotalCents, discountCents, taxCents, shippingCents, totalCents };
 }
 
+// Deposit + balance always add up to exactly totalCents — only the deposit is
+// rounded; the balance takes whatever's left, so there's never a penny of drift.
+export function computeDepositSplit(totalCents: number, depositPercent: number) {
+  const depositCents = Math.round(totalCents * (depositPercent / 100));
+  const balanceCents = totalCents - depositCents;
+  return { depositCents, balanceCents };
+}
+
 export function centsToDollars(cents: number): number {
   return Math.round(cents) / 100;
 }

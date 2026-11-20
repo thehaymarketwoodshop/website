@@ -124,6 +124,50 @@ export async function createDraftOrderForInvoice(
   return { draftOrderId, invoiceUrl };
 }
 
+// Creates a Shopify Draft Order for a single arbitrary amount — used for deposit and
+// balance payments, where the charge doesn't map to the invoice's line items (e.g. a
+// 50% deposit isn't "half of each item"). The note's stage suffix (e.g. "— Deposit") is
+// how the orders/paid webhook tells deposit vs balance payments apart.
+export async function createDraftOrderForAmount(
+  invoice: DbInvoice,
+  opts: { title: string; amountCents: number; noteStage: string }
+): Promise<DraftOrderResult> {
+  const token = await getAdminAccessToken();
+
+  const draftOrder: Record<string, unknown> = {
+    line_items: [
+      {
+        title: opts.title,
+        price: (opts.amountCents / 100).toFixed(2),
+        quantity: 1,
+        taxable: false,
+        requires_shipping: false,
+      },
+    ],
+    tax_exempt: true,
+    note: `Invoice ${invoice.invoice_no} — ${opts.noteStage}`,
+    email: invoice.buyer_email || undefined,
+    use_customer_default_address: false,
+  };
+
+  const res = await fetch(adminApiUrl('draft_orders.json'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': token,
+    },
+    body: JSON.stringify({ draft_order: draftOrder }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Shopify draft order creation failed (${res.status}): ${body}`);
+  }
+
+  const json = await res.json();
+  return { draftOrderId: String(json.draft_order.id), invoiceUrl: json.draft_order.invoice_url as string };
+}
+
 // Verifies the X-Shopify-Hmac-Sha256 header on an incoming webhook against the raw
 // request body. Must be called with the UNPARSED body — HMAC is computed over exact bytes.
 export function verifyShopifyWebhookHmac(rawBody: string, hmacHeader: string | null): boolean {

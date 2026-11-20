@@ -14,7 +14,7 @@ import {
   updateInvoiceWithItems,
   fetchInvoiceSignature,
 } from '@/lib/supabaseClient';
-import { computeInvoiceTotals, fmtCents, randomInvoiceNumber } from '@/lib/invoiceMath';
+import { computeInvoiceTotals, computeDepositSplit, fmtCents, randomInvoiceNumber } from '@/lib/invoiceMath';
 import { DEFAULT_LEGAL_AGREEMENT } from '@/lib/legalAgreement';
 import { InvoicePreview } from '@/components/InvoicePreview';
 import { Button } from '@/components/Button';
@@ -68,13 +68,28 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
   const [invoiceNo, setInvoiceNo] = useState('');
   const [status, setStatus] = useState<InvoiceStatus>('draft');
   const [publicToken, setPublicToken] = useState<string | null>(null);
-  const [meta, setMeta] = useState<Pick<DbInvoice, 'sent_at' | 'viewed_at' | 'signed_at' | 'paid_at' | 'shopify_invoice_url'> | null>(null);
+  const [meta, setMeta] = useState<Pick<
+    DbInvoice,
+    | 'sent_at'
+    | 'viewed_at'
+    | 'signed_at'
+    | 'paid_at'
+    | 'shopify_invoice_url'
+    | 'deposit_percent'
+    | 'deposit_paid_at'
+    | 'balance_sent_at'
+    | 'balance_paid_at'
+    | 'balance_shopify_invoice_url'
+  > | null>(null);
+  const [sendingBalance, setSendingBalance] = useState(false);
   const [signature, setSignature] = useState<{ signer_name: string; signed_at: string } | null>(null);
 
   const [buyer, setBuyer] = useState({ company: '', contact: '', address: '', city: '', email: '' });
   const [issueDate, setIssueDate] = useState(today());
   const [dueDate, setDueDate] = useState(addDays(today(), 30));
   const [terms, setTerms] = useState('Net 30');
+  const [depositEnabled, setDepositEnabled] = useState(false);
+  const [depositPercent, setDepositPercent] = useState(50);
   const [items, setItems] = useState<InvoiceItemInput[]>([{ description: '', unit: '', qty: 1, rate: 0 }]);
   const [taxRate, setTaxRate] = useState(0);
   const [shipping, setShipping] = useState(0);
@@ -115,7 +130,20 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
       setInvoiceNo(inv.invoice_no);
       setStatus(inv.status);
       setPublicToken(inv.public_token);
-      setMeta({ sent_at: inv.sent_at, viewed_at: inv.viewed_at, signed_at: inv.signed_at, paid_at: inv.paid_at, shopify_invoice_url: inv.shopify_invoice_url });
+      setMeta({
+        sent_at: inv.sent_at,
+        viewed_at: inv.viewed_at,
+        signed_at: inv.signed_at,
+        paid_at: inv.paid_at,
+        shopify_invoice_url: inv.shopify_invoice_url,
+        deposit_percent: inv.deposit_percent,
+        deposit_paid_at: inv.deposit_paid_at,
+        balance_sent_at: inv.balance_sent_at,
+        balance_paid_at: inv.balance_paid_at,
+        balance_shopify_invoice_url: inv.balance_shopify_invoice_url,
+      });
+      setDepositEnabled(inv.deposit_percent != null);
+      if (inv.deposit_percent != null) setDepositPercent(inv.deposit_percent);
       setBuyer({
         company: inv.buyer_company || '',
         contact: inv.buyer_contact || '',
@@ -147,7 +175,7 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
       setRenderImageUrl(inv.render_image_url);
       setLegalText(inv.legal_text || DEFAULT_LEGAL_AGREEMENT);
 
-      if (inv.status === 'signed' || inv.status === 'paid') {
+      if (inv.status === 'signed' || inv.status === 'deposit_paid' || inv.status === 'paid') {
         const sig = await fetchInvoiceSignature(inv.id);
         if (sig) setSignature({ signer_name: sig.signer_name, signed_at: sig.signed_at });
       }
@@ -229,6 +257,7 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
         payment_methods: paymentMethods,
         project_description: projectDescription || null,
         option_label: optionLabel || null,
+        deposit_percent: depositEnabled ? Number(depositPercent) || 50 : null,
         render_image_url: renderImageUrl,
         legal_text: legalText,
         subtotal_cents: t.subtotalCents,
@@ -291,6 +320,27 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
     setSending(false);
   }
 
+  async function handleSendBalance() {
+    if (!invoiceId) return;
+    setSendingBalance(true);
+    setError('');
+    setMessage('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/admin/invoices/${invoiceId}/send-balance`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to send balance invoice');
+      setMeta((prev) => (prev ? { ...prev, balance_sent_at: new Date().toISOString(), balance_shopify_invoice_url: json.balanceLink } : prev));
+      setMessage('Balance invoice emailed to customer.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send balance invoice');
+    }
+    setSendingBalance(false);
+  }
+
   async function handleDownloadPdf() {
     if (!previewRef.current) return;
     setExportingPdf(true);
@@ -345,7 +395,7 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
           </Link>
           <div>
             <h1 className="heading-section">{isNew ? 'New Invoice' : invoiceNo}</h1>
-            <p className="body-regular text-sm capitalize">{status}</p>
+            <p className="body-regular text-sm capitalize">{status.replace('_', ' ')}</p>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -375,14 +425,37 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
           {meta?.sent_at && <div>Sent: {new Date(meta.sent_at).toLocaleString()}</div>}
           {meta?.viewed_at && <div>Viewed: {new Date(meta.viewed_at).toLocaleString()}</div>}
           {signature && <div>Signed by <strong>{signature.signer_name}</strong> on {new Date(signature.signed_at).toLocaleString()}</div>}
-          {meta?.paid_at && <div className="text-green-700 font-semibold">Paid: {new Date(meta.paid_at).toLocaleString()}</div>}
+          {meta?.paid_at && <div className="text-green-700 font-semibold">Paid in full: {new Date(meta.paid_at).toLocaleString()}</div>}
           {meta?.shopify_invoice_url && (
             <div>
               <a href={meta.shopify_invoice_url} target="_blank" rel="noopener noreferrer" className="link-subtle underline inline-flex items-center gap-1">
-                Shopify checkout link <ExternalLink className="w-3 h-3" />
+                {meta?.deposit_percent != null ? 'Deposit checkout link' : 'Shopify checkout link'} <ExternalLink className="w-3 h-3" />
               </a>
             </div>
           )}
+
+          {meta?.deposit_percent != null && (() => {
+            const { depositCents, balanceCents } = computeDepositSplit(totals.totalCents, meta.deposit_percent!);
+            return (
+              <div className="pt-2 mt-2 border-t" style={{ borderColor: 'var(--color-stone)' }}>
+                <div>Deposit ({meta.deposit_percent}%): {fmtCents(depositCents)}{meta.deposit_paid_at && <span className="text-green-700 font-semibold"> — paid {new Date(meta.deposit_paid_at).toLocaleDateString()}</span>}</div>
+                <div>Balance ({100 - meta.deposit_percent!}%): {fmtCents(balanceCents)}{meta.balance_paid_at && <span className="text-green-700 font-semibold"> — paid {new Date(meta.balance_paid_at).toLocaleDateString()}</span>}</div>
+                {meta.balance_shopify_invoice_url && (
+                  <div>
+                    <a href={meta.balance_shopify_invoice_url} target="_blank" rel="noopener noreferrer" className="link-subtle underline inline-flex items-center gap-1">
+                      Balance checkout link <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
+                {meta.balance_sent_at && !meta.balance_paid_at && <div>Balance invoice sent: {new Date(meta.balance_sent_at).toLocaleString()}</div>}
+                {status === 'deposit_paid' && (
+                  <Button variant="secondary" className="mt-3" onClick={handleSendBalance} disabled={sendingBalance}>
+                    {sendingBalance ? 'Sending…' : meta.balance_sent_at ? 'Resend Balance Invoice' : 'Send Balance Invoice'}
+                  </Button>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -543,6 +616,40 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t" style={{ borderColor: 'var(--color-stone)' }}>
+            <label className="flex items-center gap-2 text-sm cursor-pointer mb-1">
+              <input
+                type="checkbox"
+                checked={depositEnabled}
+                disabled={status !== 'draft'}
+                onChange={(e) => setDepositEnabled(e.target.checked)}
+              />
+              Split into a deposit now and a balance upon completion
+            </label>
+            <p className="body-regular text-sm mb-3" style={{ opacity: 0.75 }}>
+              Customer pays the deposit when they sign; you send a separate payment link for the
+              balance once the work is done.
+            </p>
+            {depositEnabled && (
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  className={inp}
+                  style={{ width: 100 }}
+                  value={depositPercent}
+                  min={1}
+                  max={99}
+                  disabled={status !== 'draft'}
+                  onChange={(e) => setDepositPercent(Math.min(99, Math.max(1, parseFloat(e.target.value) || 0)))}
+                />
+                <span className="text-sm">
+                  % up front — deposit {fmtCents(computeDepositSplit(totals.totalCents, depositPercent).depositCents)}, balance{' '}
+                  {fmtCents(computeDepositSplit(totals.totalCents, depositPercent).balanceCents)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

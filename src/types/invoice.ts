@@ -1,4 +1,4 @@
-export type InvoiceStatus = 'draft' | 'sent' | 'viewed' | 'signed' | 'paid' | 'void';
+export type InvoiceStatus = 'draft' | 'sent' | 'viewed' | 'signed' | 'deposit_paid' | 'paid' | 'void';
 export type DiscountType = 'percent' | 'flat';
 export type InvoiceGroupStatus = 'pending' | 'selected' | 'void';
 
@@ -46,6 +46,17 @@ export interface DbInvoice {
   paid_at: string | null;
   shopify_draft_order_id: string | null;
   shopify_invoice_url: string | null;
+
+  // Null = pay the full total at signing (default). Set (e.g. 50) to split
+  // payment into a deposit collected at signing and a balance invoiced
+  // separately once the work is done. shopify_draft_order_id/shopify_invoice_url/
+  // paid_at above track the deposit in that case; the fields below track the balance.
+  deposit_percent: number | null;
+  deposit_paid_at: string | null;
+  balance_shopify_draft_order_id: string | null;
+  balance_shopify_invoice_url: string | null;
+  balance_sent_at: string | null;
+  balance_paid_at: string | null;
 
   // Set when this invoice is one of several options sent to the same client
   // under a single invoice_groups link (see DbInvoiceGroup).

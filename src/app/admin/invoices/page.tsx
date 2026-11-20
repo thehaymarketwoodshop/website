@@ -14,8 +14,19 @@ const STATUS_STYLES: Record<InvoiceStatus, string> = {
   sent: 'bg-blue-100 text-blue-700',
   viewed: 'bg-amber-100 text-amber-700',
   signed: 'bg-purple-100 text-purple-700',
+  deposit_paid: 'bg-teal-100 text-teal-700',
   paid: 'bg-green-100 text-green-700',
   void: 'bg-red-100 text-red-700',
+};
+
+const STATUS_LABELS: Record<InvoiceStatus, string> = {
+  draft: 'Draft',
+  sent: 'Sent',
+  viewed: 'Viewed',
+  signed: 'Signed',
+  deposit_paid: 'Deposit Paid',
+  paid: 'Paid',
+  void: 'Void',
 };
 
 export default function AdminInvoicesPage() {
@@ -188,8 +199,8 @@ export default function AdminInvoicesPage() {
                   <td className="px-6 py-4 body-regular">{inv.buyer_company || inv.buyer_email || '—'}</td>
                   <td className="px-6 py-4 body-regular">{fmtCents(inv.total_cents)}</td>
                   <td className="px-6 py-4">
-                    <span className={cn('inline-block px-3 py-1 rounded-full text-xs font-semibold capitalize', STATUS_STYLES[inv.status])}>
-                      {inv.status}
+                    <span className={cn('inline-block px-3 py-1 rounded-full text-xs font-semibold', STATUS_STYLES[inv.status])}>
+                      {STATUS_LABELS[inv.status]}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">

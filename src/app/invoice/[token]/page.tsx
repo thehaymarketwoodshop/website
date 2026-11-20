@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { InvoicePreview } from '@/components/InvoicePreview';
 import { Button } from '@/components/Button';
-import { fmtCents } from '@/lib/invoiceMath';
+import { fmtCents, computeDepositSplit } from '@/lib/invoiceMath';
 import type { DbInvoiceWithItems } from '@/types/invoice';
 
 export default function CustomerInvoicePage({ params }: { params: { token: string } }) {
@@ -18,6 +18,7 @@ export default function CustomerInvoicePage({ params }: { params: { token: strin
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [payLink, setPayLink] = useState<string | null>(null);
+  const [balancePayLink, setBalancePayLink] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -28,6 +29,7 @@ export default function CustomerInvoicePage({ params }: { params: { token: strin
         setInvoice(json.invoice);
         setSignerEmail(json.invoice.buyer_email || '');
         setPayLink(json.invoice.shopify_invoice_url || null);
+        setBalancePayLink(json.invoice.balance_shopify_invoice_url || null);
       } catch {
         setNotFound(true);
       }
@@ -73,9 +75,12 @@ export default function CustomerInvoicePage({ params }: { params: { token: strin
     );
   }
 
-  const isSigned = invoice.status === 'signed' || invoice.status === 'paid';
+  const isSigned = invoice.status === 'signed' || invoice.status === 'deposit_paid' || invoice.status === 'paid';
+  const isDepositPaid = invoice.status === 'deposit_paid';
   const isPaid = invoice.status === 'paid';
   const isVoid = invoice.status === 'void';
+  const hasDeposit = invoice.deposit_percent != null;
+  const split = hasDeposit ? computeDepositSplit(invoice.total_cents, invoice.deposit_percent!) : null;
 
   return (
     <div className="min-h-screen pt-16 pb-20" style={{ backgroundColor: 'var(--color-ivory-dark)' }}>
@@ -117,16 +122,57 @@ export default function CustomerInvoicePage({ params }: { params: { token: strin
           ) : isSigned ? (
             <div className="text-center">
               <CheckCircle2 className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--color-walnut)' }} />
-              <h2 className="heading-card mb-1">Signed</h2>
-              <p className="body-regular mb-6">Thank you for reviewing and signing this invoice.</p>
-              {payLink ? (
-                <a href={payLink} target="_blank" rel="noopener noreferrer">
-                  <Button size="lg">Pay Now — {fmtCents(invoice.total_cents)}</Button>
-                </a>
-              ) : (
-                <p className="text-sm" style={{ color: 'var(--color-walnut)' }}>
-                  A payment link will be sent to you shortly.
-                </p>
+              <h2 className="heading-card mb-1">{isDepositPaid ? 'Deposit Paid' : 'Signed'}</h2>
+
+              {!hasDeposit && (
+                <>
+                  <p className="body-regular mb-6">Thank you for reviewing and signing this invoice.</p>
+                  {payLink ? (
+                    <a href={payLink} target="_blank" rel="noopener noreferrer">
+                      <Button size="lg">Pay Now — {fmtCents(invoice.total_cents)}</Button>
+                    </a>
+                  ) : (
+                    <p className="text-sm" style={{ color: 'var(--color-walnut)' }}>
+                      A payment link will be sent to you shortly.
+                    </p>
+                  )}
+                </>
+              )}
+
+              {hasDeposit && !isDepositPaid && (
+                <>
+                  <p className="body-regular mb-2">Thank you for reviewing and signing this invoice.</p>
+                  <p className="body-regular mb-6">
+                    The remaining {fmtCents(split!.balanceCents)} ({100 - invoice.deposit_percent!}%) will be due upon completion.
+                  </p>
+                  {payLink ? (
+                    <a href={payLink} target="_blank" rel="noopener noreferrer">
+                      <Button size="lg">Pay Deposit — {fmtCents(split!.depositCents)}</Button>
+                    </a>
+                  ) : (
+                    <p className="text-sm" style={{ color: 'var(--color-walnut)' }}>
+                      A deposit payment link will be sent to you shortly.
+                    </p>
+                  )}
+                </>
+              )}
+
+              {hasDeposit && isDepositPaid && (
+                <>
+                  <p className="body-regular mb-6">
+                    Your deposit of {fmtCents(split!.depositCents)} has been received. The remaining{' '}
+                    {fmtCents(split!.balanceCents)} will be due upon completion.
+                  </p>
+                  {balancePayLink ? (
+                    <a href={balancePayLink} target="_blank" rel="noopener noreferrer">
+                      <Button size="lg">Pay Balance — {fmtCents(split!.balanceCents)}</Button>
+                    </a>
+                  ) : (
+                    <p className="text-sm" style={{ color: 'var(--color-walnut)' }}>
+                      We&apos;ll send a balance payment link once your piece is ready.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           ) : (
