@@ -62,7 +62,12 @@ export default function AdminInvoicesPage() {
       const admin = await checkIsAdmin();
       setIsAdmin(admin);
       if (admin) {
-        const [inv, f] = await Promise.all([fetchInvoices(), fetchInvoiceFolders()]);
+        // Folders can fail independently (e.g. its migration hasn't been run yet)
+        // without blocking the invoice list itself from ever loading.
+        const [inv, f] = await Promise.all([
+          fetchInvoices().catch(() => []),
+          fetchInvoiceFolders().catch(() => []),
+        ]);
         setInvoices(inv);
         setFolders(f);
       }
