@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { ArrowLeft, Loader2, Plus, X, ExternalLink, FileUp, Receipt, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, X, ExternalLink, Receipt, Trash2 } from 'lucide-react';
 import {
   supabase,
   checkIsAdmin,
@@ -107,9 +107,6 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
   const [receiptFileUrl, setReceiptFileUrl] = useState<string | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [savingReceipt, setSavingReceipt] = useState(false);
-
-  const [importing, setImporting] = useState(false);
-  const importInputRef = useRef<HTMLInputElement>(null);
 
   const [buyer, setBuyer] = useState({ company: '', contact: '', address: '', city: '', email: '' });
   const [issueDate, setIssueDate] = useState(today());
@@ -263,59 +260,6 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
       setError(err instanceof Error ? err.message : 'Image upload failed');
     }
     setUploadingImage(false);
-  }
-
-  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setImporting(true);
-    setError('');
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/admin/invoices/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ dataUrl }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Import failed');
-
-      const d = json.data || {};
-      if (d.invoice_no) setInvoiceNo(d.invoice_no);
-      setBuyer({
-        company: d.buyer_company || '',
-        contact: d.buyer_contact || '',
-        address: d.buyer_address || '',
-        city: d.buyer_city || '',
-        email: d.buyer_email || '',
-      });
-      if (d.issue_date) setIssueDate(d.issue_date);
-      if (d.due_date) setDueDate(d.due_date);
-      if (d.terms) setTerms(d.terms);
-      if (Array.isArray(d.items) && d.items.length > 0) {
-        setItems(
-          d.items.map((it: Record<string, unknown>) => ({
-            description: typeof it.description === 'string' ? it.description : '',
-            unit: typeof it.unit === 'string' ? it.unit : '',
-            qty: Number(it.qty) || 1,
-            rate: Number(it.rate) || 0,
-          }))
-        );
-      }
-      if (typeof d.tax_rate === 'number') setTaxRate(d.tax_rate);
-      if (typeof d.shipping === 'number') setShipping(d.shipping);
-      if (d.discount_type === 'percent' || d.discount_type === 'flat') setDiscountType(d.discount_type);
-      if (typeof d.discount_value === 'number') setDiscountValue(d.discount_value);
-      if (d.notes) setNotes(d.notes);
-      if (d.project_description) setProjectDescription(d.project_description);
-
-      setMessage('Imported — review the fields below before saving.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
-    }
-    setImporting(false);
   }
 
   async function handleReceiptFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -547,15 +491,6 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
             <option value="">Unsorted</option>
             {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
-          {isNew && (
-            <>
-              <input ref={importInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" className="hidden" onChange={handleImportFile} />
-              <Button variant="secondary" onClick={() => importInputRef.current?.click()} disabled={importing}>
-                <FileUp className="w-4 h-4 mr-2" />
-                {importing ? 'Reading…' : 'Import from File'}
-              </Button>
-            </>
-          )}
           <Button variant="secondary" onClick={handleDownloadPdf} disabled={exportingPdf}>
             {exportingPdf ? 'Generating…' : 'Download PDF'}
           </Button>
