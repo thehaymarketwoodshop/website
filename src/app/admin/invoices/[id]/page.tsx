@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { ArrowLeft, Loader2, Plus, X, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, X, ExternalLink, FileUp, Receipt, Trash2 } from 'lucide-react';
 import {
   supabase,
   checkIsAdmin,
@@ -13,12 +13,16 @@ import {
   createInvoiceWithItems,
   updateInvoiceWithItems,
   fetchInvoiceSignature,
+  fetchInvoiceFolders,
+  fetchInvoiceReceipts,
+  createInvoiceReceipt,
+  deleteInvoiceReceipt,
 } from '@/lib/supabaseClient';
 import { computeInvoiceTotals, computeDepositSplit, fmtCents, randomInvoiceNumber } from '@/lib/invoiceMath';
 import { DEFAULT_LEGAL_AGREEMENT } from '@/lib/legalAgreement';
 import { InvoicePreview } from '@/components/InvoicePreview';
 import { Button } from '@/components/Button';
-import type { DbInvoice, DiscountType, InvoiceItemInput, InvoiceStatus } from '@/types/invoice';
+import type { DbInvoice, DbInvoiceFolder, DbInvoiceReceipt, DiscountType, InvoiceItemInput, InvoiceStatus } from '@/types/invoice';
 
 const PAYMENT_TERMS_OPTIONS = ['Net 15', 'Net 30', 'Net 45', 'Net 60', 'Due on Receipt'];
 const PAYMENT_METHODS = ['Bank Transfer (ACH)', 'Check', 'Credit Card', 'Zelle', 'PayPal', 'Shopify Checkout'];
@@ -54,6 +58,17 @@ function resizeImageToDataUrl(file: File, maxDim: number, quality: number): Prom
   });
 }
 
+// No resizing — unlike resizeImageToDataUrl above, OCR import needs full legibility
+// (and must also accept PDFs, which resizeImageToDataUrl can't handle at all).
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsDataURL(file);
+  });
+}
+
 const inp = 'input-field';
 
 export default function AdminInvoiceEditorPage({ params }: { params: { id: string } }) {
@@ -83,6 +98,18 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
   > | null>(null);
   const [sendingBalance, setSendingBalance] = useState(false);
   const [signature, setSignature] = useState<{ signer_name: string; signed_at: string } | null>(null);
+
+  const [folders, setFolders] = useState<DbInvoiceFolder[]>([]);
+  const [folderId, setFolderId] = useState<string | null>(null);
+
+  const [receipts, setReceipts] = useState<DbInvoiceReceipt[]>([]);
+  const [newReceipt, setNewReceipt] = useState({ vendor: '', amount: '', date: today(), note: '' });
+  const [receiptFileUrl, setReceiptFileUrl] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [savingReceipt, setSavingReceipt] = useState(false);
+
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const [buyer, setBuyer] = useState({ company: '', contact: '', address: '', city: '', email: '' });
   const [issueDate, setIssueDate] = useState(today());
@@ -116,6 +143,8 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
       const admin = await checkIsAdmin();
       setIsAdmin(admin);
       if (!admin) { setIsLoading(false); return; }
+
+      fetchInvoiceFolders().then(setFolders).catch(() => {});
 
       if (isNew) {
         setInvoiceNo(randomInvoiceNumber());
@@ -174,6 +203,9 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
       setOptionLabel(inv.option_label || '');
       setRenderImageUrl(inv.render_image_url);
       setLegalText(inv.legal_text || DEFAULT_LEGAL_AGREEMENT);
+      setFolderId(inv.folder_id);
+
+      fetchInvoiceReceipts(inv.id).then(setReceipts).catch(() => {});
 
       if (inv.status === 'signed' || inv.status === 'deposit_paid' || inv.status === 'paid') {
         const sig = await fetchInvoiceSignature(inv.id);
@@ -233,6 +265,112 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
     setUploadingImage(false);
   }
 
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setImporting(true);
+    setError('');
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin/invoices/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ dataUrl }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Import failed');
+
+      const d = json.data || {};
+      if (d.invoice_no) setInvoiceNo(d.invoice_no);
+      setBuyer({
+        company: d.buyer_company || '',
+        contact: d.buyer_contact || '',
+        address: d.buyer_address || '',
+        city: d.buyer_city || '',
+        email: d.buyer_email || '',
+      });
+      if (d.issue_date) setIssueDate(d.issue_date);
+      if (d.due_date) setDueDate(d.due_date);
+      if (d.terms) setTerms(d.terms);
+      if (Array.isArray(d.items) && d.items.length > 0) {
+        setItems(
+          d.items.map((it: Record<string, unknown>) => ({
+            description: typeof it.description === 'string' ? it.description : '',
+            unit: typeof it.unit === 'string' ? it.unit : '',
+            qty: Number(it.qty) || 1,
+            rate: Number(it.rate) || 0,
+          }))
+        );
+      }
+      if (typeof d.tax_rate === 'number') setTaxRate(d.tax_rate);
+      if (typeof d.shipping === 'number') setShipping(d.shipping);
+      if (d.discount_type === 'percent' || d.discount_type === 'flat') setDiscountType(d.discount_type);
+      if (typeof d.discount_value === 'number') setDiscountValue(d.discount_value);
+      if (d.notes) setNotes(d.notes);
+      if (d.project_description) setProjectDescription(d.project_description);
+
+      setMessage('Imported — review the fields below before saving.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Import failed');
+    }
+    setImporting(false);
+  }
+
+  async function handleReceiptFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingReceipt(true);
+    setError('');
+    try {
+      const dataUrl = file.type === 'application/pdf' ? await fileToDataUrl(file) : await resizeImageToDataUrl(file, 1400, 0.82);
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin/invoices/upload-asset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ dataUrl, folder: 'receipts' }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Upload failed');
+      setReceiptFileUrl(json.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Receipt upload failed');
+    }
+    setUploadingReceipt(false);
+  }
+
+  async function handleAddReceipt() {
+    if (!invoiceId) return;
+    setSavingReceipt(true);
+    setError('');
+    try {
+      const created = await createInvoiceReceipt(invoiceId, {
+        vendor: newReceipt.vendor || null,
+        amount_cents: Math.round((Number(newReceipt.amount) || 0) * 100),
+        receipt_date: newReceipt.date,
+        note: newReceipt.note || null,
+        file_url: receiptFileUrl,
+      });
+      setReceipts((prev) => [created, ...prev]);
+      setNewReceipt({ vendor: '', amount: '', date: today(), note: '' });
+      setReceiptFileUrl(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add receipt');
+    }
+    setSavingReceipt(false);
+  }
+
+  async function handleDeleteReceipt(id: string) {
+    try {
+      await deleteInvoiceReceipt(id);
+      setReceipts((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete receipt');
+    }
+  }
+
   async function handleSave(): Promise<string | null> {
     setSaving(true);
     setError('');
@@ -257,6 +395,7 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
         payment_methods: paymentMethods,
         project_description: projectDescription || null,
         option_label: optionLabel || null,
+        folder_id: folderId,
         deposit_percent: depositEnabled ? Number(depositPercent) || 50 : null,
         render_image_url: renderImageUrl,
         legal_text: legalText,
@@ -399,6 +538,24 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <select
+            className={inp}
+            value={folderId || ''}
+            onChange={(e) => setFolderId(e.target.value || null)}
+            title="Folder"
+          >
+            <option value="">Unsorted</option>
+            {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          {isNew && (
+            <>
+              <input ref={importInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" className="hidden" onChange={handleImportFile} />
+              <Button variant="secondary" onClick={() => importInputRef.current?.click()} disabled={importing}>
+                <FileUp className="w-4 h-4 mr-2" />
+                {importing ? 'Reading…' : 'Import from File'}
+              </Button>
+            </>
+          )}
           <Button variant="secondary" onClick={handleDownloadPdf} disabled={exportingPdf}>
             {exportingPdf ? 'Generating…' : 'Download PDF'}
           </Button>
@@ -491,7 +648,19 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wide mb-1">Invoice Number</label>
-              <input className={inp} value={invoiceNo} readOnly style={{ opacity: 0.7 }} />
+              <input
+                className={inp}
+                value={invoiceNo}
+                onChange={(e) => setInvoiceNo(e.target.value)}
+                readOnly={status !== 'draft'}
+                style={status !== 'draft' ? { opacity: 0.7 } : undefined}
+                placeholder="INV-2026-00000"
+              />
+              {status !== 'draft' && (
+                <p className="text-xs mt-1" style={{ opacity: 0.6 }}>
+                  Locked once sent — changing it after that would break payment matching.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wide mb-1">Issue Date</label>
@@ -594,6 +763,76 @@ export default function AdminInvoiceEditorPage({ params }: { params: { id: strin
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="card p-6">
+          <h2 className="heading-card mb-4 text-lg inline-flex items-center gap-2">
+            <Receipt className="w-5 h-5" /> Receipts
+          </h2>
+          <p className="body-regular text-sm mb-4" style={{ opacity: 0.75 }}>
+            Log material/expense receipts for this build. They stay attached to this invoice as it
+            moves between folders.
+          </p>
+
+          {!invoiceId ? (
+            <p className="text-sm" style={{ opacity: 0.7 }}>Save the invoice first to start adding receipts.</p>
+          ) : (
+            <>
+              {receipts.length > 0 && (
+                <ul className="flex flex-col gap-2 mb-4">
+                  {receipts.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between gap-3 text-sm border-b pb-2" style={{ borderColor: 'var(--color-stone)' }}>
+                      <div className="min-w-0">
+                        <span className="font-semibold">{fmtCents(r.amount_cents)}</span>
+                        {r.vendor && <span> — {r.vendor}</span>}
+                        <span style={{ opacity: 0.7 }}> · {new Date(r.receipt_date).toLocaleDateString()}</span>
+                        {r.note && <div className="text-xs" style={{ opacity: 0.7 }}>{r.note}</div>}
+                      </div>
+                      <div className="flex items-center gap-3 flex-none">
+                        {r.file_url && (
+                          <a href={r.file_url} target="_blank" rel="noopener noreferrer" className="link-subtle underline text-xs">View</a>
+                        )}
+                        <button onClick={() => handleDeleteReceipt(r.id)} className="text-red-500 hover:text-red-700">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                  <li className="text-sm font-semibold pt-1">
+                    Total receipts: {fmtCents(receipts.reduce((sum, r) => sum + r.amount_cents, 0))}
+                  </li>
+                </ul>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+                <div className="sm:col-span-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1">Vendor</label>
+                  <input className={inp} value={newReceipt.vendor} onChange={(e) => setNewReceipt({ ...newReceipt, vendor: e.target.value })} placeholder="Hardware store" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1">Amount ($)</label>
+                  <input type="number" className={inp} value={newReceipt.amount} min={0} step="0.01" onChange={(e) => setNewReceipt({ ...newReceipt, amount: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1">Date</label>
+                  <input type="date" className={inp} value={newReceipt.date} onChange={(e) => setNewReceipt({ ...newReceipt, date: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1">Note</label>
+                  <input className={inp} value={newReceipt.note} onChange={(e) => setNewReceipt({ ...newReceipt, note: e.target.value })} placeholder="Optional" />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mt-3 flex-wrap">
+                <input type="file" accept="image/*,application/pdf" onChange={handleReceiptFileUpload} disabled={uploadingReceipt} />
+                {uploadingReceipt && <span className="text-sm">Uploading…</span>}
+                {receiptFileUrl && !uploadingReceipt && <span className="text-sm text-green-700">File attached ✓</span>}
+                <Button variant="secondary" onClick={handleAddReceipt} disabled={savingReceipt}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  {savingReceipt ? 'Adding…' : 'Add Receipt'}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="card p-6">

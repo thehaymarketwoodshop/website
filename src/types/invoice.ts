@@ -62,6 +62,29 @@ export interface DbInvoice {
   // under a single invoice_groups link (see DbInvoiceGroup).
   group_id: string | null;
   option_label: string | null;
+
+  // Workflow folder (In Progress / Sent to Client / etc.) — independent of
+  // `status` above, which tracks payment/signing, not project stage.
+  folder_id: string | null;
+}
+
+export interface DbInvoiceFolder {
+  id: string;
+  created_at: string;
+  name: string;
+  color: string;
+  sort_order: number;
+}
+
+export interface DbInvoiceReceipt {
+  id: string;
+  invoice_id: string;
+  created_at: string;
+  vendor: string | null;
+  amount_cents: number;
+  receipt_date: string;
+  note: string | null;
+  file_url: string | null;
 }
 
 export interface DbInvoiceWithItems extends DbInvoice {

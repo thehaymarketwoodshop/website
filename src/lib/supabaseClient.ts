@@ -221,7 +221,7 @@ export async function deleteProduct(id: string): Promise<void> {
 /* ================================
    INVOICES
 ================================ */
-import type { DbInvoice, DbInvoiceItem, DbInvoiceWithItems } from '@/types/invoice';
+import type { DbInvoice, DbInvoiceFolder, DbInvoiceItem, DbInvoiceReceipt, DbInvoiceWithItems } from '@/types/invoice';
 
 type InvoiceItemRow = Pick<DbInvoiceItem, 'description' | 'unit' | 'qty' | 'rate_cents' | 'sort_order'>;
 
@@ -287,6 +287,70 @@ export async function updateInvoiceWithItems(
 
 export async function deleteInvoice(id: string): Promise<void> {
   const { error } = await supabase.from('invoices').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function moveInvoiceToFolder(id: string, folderId: string | null): Promise<void> {
+  const { error } = await supabase.from('invoices').update({ folder_id: folderId }).eq('id', id);
+  if (error) throw error;
+}
+
+/* ================================
+   INVOICE FOLDERS
+================================ */
+export async function fetchInvoiceFolders(): Promise<DbInvoiceFolder[]> {
+  const { data, error } = await supabase.from('invoice_folders').select('*').order('sort_order');
+  if (error) throw error;
+  return (data ?? []) as DbInvoiceFolder[];
+}
+
+export async function createInvoiceFolder(name: string, color: string): Promise<DbInvoiceFolder> {
+  const { data: existing } = await supabase.from('invoice_folders').select('sort_order').order('sort_order', { ascending: false }).limit(1);
+  const nextSort = (existing?.[0]?.sort_order ?? -1) + 1;
+  const { data, error } = await supabase.from('invoice_folders').insert({ name, color, sort_order: nextSort }).select().single();
+  if (error) throw error;
+  return data as DbInvoiceFolder;
+}
+
+export async function renameInvoiceFolder(id: string, name: string): Promise<void> {
+  const { error } = await supabase.from('invoice_folders').update({ name }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteInvoiceFolder(id: string): Promise<void> {
+  // Invoices in this folder fall back to "Unsorted" (folder_id = NULL) via ON DELETE SET NULL.
+  const { error } = await supabase.from('invoice_folders').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/* ================================
+   INVOICE RECEIPTS
+================================ */
+export async function fetchInvoiceReceipts(invoiceId: string): Promise<DbInvoiceReceipt[]> {
+  const { data, error } = await supabase
+    .from('invoice_receipts')
+    .select('*')
+    .eq('invoice_id', invoiceId)
+    .order('receipt_date', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as DbInvoiceReceipt[];
+}
+
+export async function createInvoiceReceipt(
+  invoiceId: string,
+  fields: { vendor: string | null; amount_cents: number; receipt_date: string; note: string | null; file_url: string | null }
+): Promise<DbInvoiceReceipt> {
+  const { data, error } = await supabase
+    .from('invoice_receipts')
+    .insert({ invoice_id: invoiceId, ...fields })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbInvoiceReceipt;
+}
+
+export async function deleteInvoiceReceipt(id: string): Promise<void> {
+  const { error } = await supabase.from('invoice_receipts').delete().eq('id', id);
   if (error) throw error;
 }
 
